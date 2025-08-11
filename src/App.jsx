@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
 import DefaultLayout from "./Layouts/DefaultLayout.jsx";
-import Index from "./pages/Index.jsx";
+import InvoicePages from "./pages/InvoicePages.jsx";
 import NotFound from "./pages/NotFound.jsx";
 
 const queryClient = new QueryClient();
@@ -21,7 +21,7 @@ const App = () => (
             path="/"
             element={
               <DefaultLayout>
-                <Index />
+                <InvoicePages />
               </DefaultLayout>
             }
           />

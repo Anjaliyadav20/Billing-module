@@ -1,149 +1,155 @@
-import { CalendarDays, Building2, Truck, MoreHorizontal } from "lucide-react";
+import { MoreHorizontal } from "lucide-react";
+import calendar from "../assets/calendar-event.svg";
+import truck from "../assets/truck-fast.svg";
 
 export const ConnectedList = ({
-  type, 
+  type = "pos",
   data = [],
   onAdd,
   onView,
-  onMore
+  onMore,
 }) => {
   if (!data.length) {
     return (
-      <div className="text-sm text-muted-foreground py-8 text-center">
+      <div className="text-sm text-muted-foreground py-8 text-center font-[system-ui]">
         No connected {type} available.
       </div>
     );
   }
 
-  const getHeaderTitle = () => {
-    switch (type) {
-      case "quotes":
-        return "Connected Quote(s)";
-      case "pos":
-        return "Connected PO(s)";
-      case "jobs":
-        return "Connected Job(s)";
-      default:
-        return "Connected Items";
-    }
-  };
+  const headerTitle =
+    type === "quotes"
+      ? "Connected Quote(s)"
+      : type === "jobs"
+      ? "Connected Job(s)"
+      : "Connected PO(s)";
+
+  const matchBadgeClass = (m) =>
+    m === "Full Match"
+      ? "bg-green-50 text-green-700 border-green-200"
+      : "bg-yellow-50 text-yellow-700 border-yellow-200";
 
   return (
-    <div className="space-y-4">
-      
-      <div className="flex justify-between items-center mb-2">
+    <div className="space-y-4 font-[system-ui]">
+      {/* Header */}
+      <div className="flex items-center justify-between">
         <h3 className="font-semibold text-[15px] text-foreground">
-          {getHeaderTitle()}
+          {headerTitle}
         </h3>
         <button
-          className="text-sm font-medium px-3 py-1.5 rounded-md border border-gray-200 bg-white shadow-sm hover:bg-gray-50 transition"
           onClick={onAdd}
+          type="button"
+          className="text-sm font-medium px-3 py-1.5 rounded-md border border-gray-200 bg-white shadow-sm hover:bg-gray-50 transition"
         >
-          <i class="fa-solid fa-plus"></i> Add
+          <i className="fa-solid fa-plus mr-1.5"></i> Add
         </button>
       </div>
 
-      
+      {/* Cards */}
       {data.map((item, idx) => (
         <div
           key={idx}
-          className="border border-gray-100 rounded-lg bg-white px-4 pt-3 pb-2 shadow-sm"
+          className="rounded-2xl border border-gray-200 bg-white px-4 pt-3 pb-2 shadow-sm"
         >
-          {/* Top section */}
-          <div className="flex justify-between items-start">
+          {/* Top row */}
+          <div className="flex items-start justify-between">
             <div>
+              {type === "pos" && (
+                <>
+                  <div className="text-[15px] font-semibold text-gray-900 mb-1">
+                    PO #{item.poNumber}
+                  </div>
+                  <div className="text-[13px] text-gray-600 leading-5">
+                    {item.description}
+                  </div>
+                </>
+              )}
+
               {type === "quotes" && (
                 <>
-                  <div className="font-semibold text-sm text-foreground mb-1">
+                  <div className="text-[15px] font-semibold text-gray-900 mb-1">
                     QI #{item.quoteNumber}
                   </div>
-                  <div className="text-sm text-gray-600">
+                  <div className="text-[13px] text-gray-600 leading-5">
                     Total amount of {item.amount}
                   </div>
                 </>
               )}
 
-              {type === "pos" && (
-                <>
-                  <div className="font-semibold text-sm text-foreground mb-1">
-                    PO #{item.poNumber}
-                  </div>
-                  <div className="text-sm text-gray-600">{item.description}</div>
-                </>
-              )}
-
               {type === "jobs" && (
                 <>
-                  <div className="font-semibold text-sm text-foreground mb-1">
+                  <div className="text-[15px] font-semibold text-gray-900 mb-1">
                     JO #{item.jobNumber}
                   </div>
-                  <div className="text-sm text-gray-600">{item.description}</div>
+                  <div className="text-[13px] text-gray-600 leading-5">
+                    {item.description}
+                  </div>
                 </>
               )}
             </div>
 
             <div className="flex items-start gap-2">
               <button
-                className="h-9 px-4 text-sm font-medium bg-gray-100 rounded-lg  hover:bg-gray-50 shadow-sm transition"
                 onClick={() => onView?.(item)}
+                type="button"
+                className="h-8 px-3 text-sm font-medium rounded-lg bg-gray-100 hover:bg-gray-50 shadow-sm"
               >
                 View
               </button>
               <button
-                className="h-9 w-9 flex items-center justify-center rounded-lg  bg-gray-100 hover:bg-gray-100 transition"
                 onClick={() => onMore?.(item)}
+                type="button"
+                className="h-8 w-8 inline-flex items-center justify-center rounded-lg bg-gray-100 hover:bg-gray-50"
               >
                 <MoreHorizontal className="w-4 h-4 text-gray-600" />
               </button>
             </div>
           </div>
 
-          
-          <div className="mt-3 mb-3 border-t border-gray-100" />
+          {/* Divider */}
+          <div className="mt-3 mb-2.5 border-t border-gray-200" />
 
-          
-          {type === "quotes" && (
-            <div className="flex items-center gap-6 text-xs text-muted-foreground">
-              <div className="flex items-center gap-1">
-                <Building2 className="w-4 h-4" />
-                <span>{item.vendor}</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <CalendarDays className="w-4 h-4" />
-                <span>{item.date}</span>
-              </div>
-            </div>
-          )}
-
+          {/* Meta row */}
           {type === "pos" && (
-            <div className="flex items-center gap-5 text-xs text-muted-foreground">
-              <div className="flex items-center gap-1">
-                <Truck className="w-4 h-4" />
-                <span>{item.deliveryDate}</span>
+            <div className="flex items-center gap-5 text-[13px] text-gray-700">
+              <div className="flex items-center gap-1.5">
+                <img src={truck} alt="" className="w-4.5 h-4.5" />
+                <span className="font-medium leading-5">{item.deliveryDate}</span>
               </div>
-              <div className="flex items-center gap-1">
-                <CalendarDays className="w-4 h-4" />
-                <span>{item.poDate}</span>
+              <div className="flex items-center gap-1.5">
+                <img src={calendar} alt="" className="w-4.5 h-4.5" />
+                <span className="font-medium leading-5">{item.poDate}</span>
               </div>
+
+              <span className="text-gray-300 text-lg leading-none">•</span>
+
               <span
-                className={`px-2.5 py-0.5 rounded-full font-medium text-xs leading-5 ${
-                  item.match === "Full Match"
-                    ? "bg-green-50 text-green-700 border border-green-200"
-                    : "bg-yellow-50 text-yellow-700 border border-yellow-200"
-                }`}
+                className={
+                  "px-2.5 py-0.5 rounded-full border font-medium text-[12px] leading-5 " +
+                  matchBadgeClass(item.match)
+                }
               >
                 {item.match}
               </span>
             </div>
           )}
 
-          {type === "jobs" && (
-            <div className="flex items-center gap-3 text-xs text-muted-foreground">
-              <div className="flex items-center gap-1">
-                <CalendarDays className="w-4 h-4" />
-                <span>{item.date}</span>
+          {type === "quotes" && (
+            <div className="flex items-center gap-6 text-[13px] text-gray-700">
+              <div className="flex items-center gap-1.5">
+                <img src={calendar} alt="" className="w-4.5 h-4.5" />
+                <span className="leading-5">{item.date}</span>
               </div>
-              <span className="px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-600 font-medium border border-indigo-100">
+            </div>
+          )}
+
+          {type === "jobs" && (
+            <div className="flex items-center gap-3 text-[13px] text-gray-700">
+              <div className="flex items-center gap-1.5">
+                <img src={calendar} alt="" className="w-4.5 h-4.5" />
+                <span className="leading-5">{item.date}</span>
+              </div>
+              <span className="px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-600 font-medium border border-indigo-100 text-[12px] leading-5">
                 {item.status}
               </span>
             </div>

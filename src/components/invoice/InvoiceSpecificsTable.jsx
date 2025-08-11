@@ -33,9 +33,9 @@ export const InvoiceSpecificsTable = ({ products = [] }) => {
     <div className="border border-border overflow-x-scroll overflow-y-hidden rounded-md bg-white custom-scrollbar">
       <table
         className="w-full text-sm border-collapse"
-        style={{ minWidth: "700px" }} // Force wider than container so scroll always shows
+        style={{ minWidth: "700px" }} 
       >
-        <thead className="bg-[#f9fafb] text-[#6b7280] border-b">
+        <thead className="bg-[#ffffff] text-[#6b7280] border-b">
           <tr>
             <th className="text-left px-5 py-3 font-medium whitespace-nowrap"># Product</th>
             <th className="text-left px-5 py-3 font-medium whitespace-nowrap">Product Name</th>
@@ -49,27 +49,29 @@ export const InvoiceSpecificsTable = ({ products = [] }) => {
               <td className="px-5 py-3 text-sm text-gray-900 whitespace-nowrap">
                 {editIndex === idx ? (
                   <div className="relative">
-                    <input
-                      value={editValue}
-                      onChange={(e) => setEditValue(e.target.value)}
-                      className="border border-border rounded-md px-3 py-2 text-sm w-full bg-white shadow-sm focus:border-border focus:ring-0 outline-none"
-                      autoFocus
-                    />
-                    <div className="absolute top-full right-0 mt-1 z-10 bg-white border rounded-md shadow-md flex">
-                      <button
-                        onClick={() => saveEdit(idx)}
-                        className="p-1.5 text-green-600 hover:text-green-800"
-                      >
-                        <Check size={16} />
-                      </button>
-                      <button
-                        onClick={cancelEdit}
-                        className="p-1.5 text-red-600 hover:text-red-800"
-                      >
-                        <X size={16} />
-                      </button>
-                    </div>
+                  <input
+                    value={editValue}
+                    onChange={(e) => setEditValue(e.target.value)}
+                    className="border border-border rounded-md px-3 py-2 text-sm w-full bg-white shadow-sm focus:border-border focus:ring-0 outline-none"
+                    autoFocus
+                  />
+                  <div className="absolute right-0 top-full mt-1 z-10 flex w-[72px] rounded-md border shadow bg-white overflow-hidden">
+                    <button
+                      onClick={() => saveEdit(idx)}
+                      className="w-1/2 p-2 flex items-center justify-center text-green-600 hover:bg-green-50"
+                    >
+                      <Check size={16} />
+                    </button>
+                    <div className="w-px bg-gray-200" />
+                    <button
+                      onClick={cancelEdit}
+                      className="w-1/2 p-2 flex items-center justify-center text-red-600 hover:bg-red-50"
+                    >
+                      <X size={16} />
+                    </button>
                   </div>
+                </div>
+
                 ) : (
                   <div
                     className="cursor-pointer"

@@ -18,13 +18,11 @@ export const Summary = ({ invoice }) => {
   const dateRef = useRef(null);
   const dueDateRef = useRef(null);
 
-
   const formatDate = (date) => {
     return date.toISOString().split("T")[0];
   };
 
-  
-  const defaultDate = new Date(2025, 5, 20); // months are 0-indexed
+  const defaultDate = new Date(2025, 5, 20); 
   const defaultDueDate = new Date(defaultDate);
   defaultDueDate.setDate(defaultDueDate.getDate() + 7);
 
@@ -42,14 +40,15 @@ export const Summary = ({ invoice }) => {
     setTags(tags.filter((tag) => tag !== tagToRemove));
   };
 
+  // ✅ Updated with left padding for all inputs
   const flatField =
-    "h-10 w-full text-sm rounded-md border border-input bg-white " +
+    "h-10 w-full text-sm rounded-md border border-input bg-white pl-3 pr-8 " +
     "outline-none focus:outline-none focus:ring-0 focus:ring-offset-0 " +
     "focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 " +
     "focus:border-input";
 
   const flatSelectTrigger =
-    "h-10 w-full text-sm rounded-md border border-input bg-white " +
+    "h-10 w-full text-sm rounded-md border border-input bg-white pl-3 " +
     "outline-none focus:outline-none focus:ring-0 focus:ring-offset-0 " +
     "focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 " +
     "focus:border-input";
@@ -57,7 +56,7 @@ export const Summary = ({ invoice }) => {
   return (
     <>
       <div>
-        <div className="text-lg mb-3 font-bold">Transaction Details</div>
+        <div className="text-lg text-b mb-3">Transaction Details</div>
 
         <Label>Document Type</Label>
         <Select defaultValue="invoice">
@@ -101,7 +100,6 @@ export const Summary = ({ invoice }) => {
               type="date"
               defaultValue={formatDate(invoice?.date ? new Date(invoice.date) : defaultDate)}
               className={
-                "pr-8 " +
                 flatField +
                 " [&::-webkit-calendar-picker-indicator]:opacity-0 " +
                 " [&::-webkit-calendar-picker-indicator]:absolute " +
@@ -125,7 +123,6 @@ export const Summary = ({ invoice }) => {
               type="date"
               defaultValue={formatDate(defaultDueDate)}
               className={
-                "pr-8 " +
                 flatField +
                 " [&::-webkit-calendar-picker-indicator]:opacity-0 " +
                 " [&::-webkit-calendar-picker-indicator]:absolute " +
@@ -228,6 +225,7 @@ export const Summary = ({ invoice }) => {
         </div>
 
         <div className="rounded-md bg-white p-4 border-t border-border">
+          <h3 className="text-lg font-bold text-gray-800 pb-3 px-1">Destinations</h3>
           <XeroDestination />
         </div>
       </div>

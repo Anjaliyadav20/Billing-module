@@ -1,8 +1,6 @@
 import {
   ChevronUp,
   ChevronDown,
-  ZoomIn,
-  ZoomOut,
   RotateCcw,
   RotateCw,
   Download,
@@ -19,16 +17,16 @@ import "pdfjs-dist/build/pdf.worker.entry";
 export const InvoiceDocument = ({ invoice }) => {
   const scrollContainerRef = useRef(null);
   const pdfContainerRef = useRef(null);
+  const renderIdRef = useRef(0); // prevent duplicate renders
 
   const [pdf, setPdf] = useState(null);
   const [zoom, setZoom] = useState(1);
   const [pageCount, setPageCount] = useState(1);
   const [currentPage, setCurrentPage] = useState(1);
   const [isPageless, setIsPageless] = useState(false);
-  const [rotation, setRotation] = useState(0); 
+  const [rotation, setRotation] = useState(0);
 
   const fileUrl = invoice?.previewUrl || "/invoices/sample_invoice.pdf";
-
 
   useEffect(() => {
     let cancelled = false;
@@ -46,7 +44,6 @@ export const InvoiceDocument = ({ invoice }) => {
         setPdf(loadedPdf);
         setPageCount(loadedPdf.numPages);
 
-        // Auto-fit to container width
         const firstPage = await loadedPdf.getPage(1);
         const viewport = firstPage.getViewport({ scale: 1, rotation: 0 });
         if (pdfContainerRef.current) {
@@ -62,7 +59,6 @@ export const InvoiceDocument = ({ invoice }) => {
       cancelled = true;
     };
   }, [fileUrl]);
-
 
   useEffect(() => {
     const handleResize = () => {
@@ -83,13 +79,46 @@ export const InvoiceDocument = ({ invoice }) => {
     if (pdf) renderAllPages(pdf, zoom, rotation);
   }, [zoom, pdf, isPageless, rotation]);
 
+  useEffect(() => {
+    const handleScroll = () => {
+      if (!scrollContainerRef.current) return;
+      const pageElems = pdfContainerRef.current.querySelectorAll(".pdf-page");
+      let newCurrent = currentPage;
+      const containerTop = scrollContainerRef.current.scrollTop;
+      let smallestDiff = Infinity;
+      pageElems.forEach((el, index) => {
+        const diff = Math.abs(el.offsetTop - containerTop);
+        if (diff < smallestDiff) {
+          smallestDiff = diff;
+          newCurrent = index + 1;
+        }
+      });
+      setCurrentPage(newCurrent);
+    };
+
+    const scrollEl = scrollContainerRef.current;
+    if (scrollEl) {
+      scrollEl.addEventListener("scroll", handleScroll);
+    }
+    return () => {
+      if (scrollEl) scrollEl.removeEventListener("scroll", handleScroll);
+    };
+  }, [pdf, currentPage]);
+
   const renderAllPages = async (pdfDoc, scale, rot = 0) => {
     if (!pdfContainerRef.current) return;
-    pdfContainerRef.current.innerHTML = "";
+
+    const thisRenderId = ++renderIdRef.current;
+    pdfContainerRef.current.innerHTML = ""; // clear before rendering
+
     for (let n = 1; n <= pdfDoc.numPages; n++) {
+      // Cancel if a newer render started
+      if (thisRenderId !== renderIdRef.current) return;
+
       const page = await pdfDoc.getPage(n);
       const viewport = page.getViewport({ scale, rotation: rot });
       const canvas = document.createElement("canvas");
+      canvas.className = "pdf-page";
       const ctx = canvas.getContext("2d");
       canvas.width = viewport.width;
       canvas.height = viewport.height;
@@ -126,14 +155,26 @@ export const InvoiceDocument = ({ invoice }) => {
     document.body.removeChild(a);
   };
 
-  const handleScroll = (dir) => {
-    const el = scrollContainerRef.current;
-    if (!el) return;
-    el.scrollBy({ top: dir === "up" ? -100 : 100, behavior: "smooth" });
-    const pageHeight = el.scrollHeight / pageCount;
-    const newPage = Math.round(el.scrollTop / pageHeight) + 1;
-    setCurrentPage(Math.max(1, Math.min(newPage, pageCount)));
+  const jumpToPage = (pageNum) => {
+    const pageElems = pdfContainerRef.current.querySelectorAll(".pdf-page");
+    if (pageNum < 1 || pageNum > pageCount) return;
+    const el = pageElems[pageNum - 1];
+    if (el && scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTo({
+        top: el.offsetTop,
+        behavior: "smooth",
+      });
+    }
   };
+
+  const handlePageChange = (dir) => {
+    const targetPage =
+      dir === "up" ? currentPage - 1 : currentPage + 1;
+    if (targetPage >= 1 && targetPage <= pageCount) {
+      jumpToPage(targetPage);
+    }
+  };
+
   const openExternal = () => window.open(fileUrl, "_blank");
   const togglePageless = () => setIsPageless((v) => !v);
   const handlePrint = () => window.print();
@@ -153,29 +194,31 @@ export const InvoiceDocument = ({ invoice }) => {
 
   return (
     <div className="relative flex flex-col h-full">
-
       <div className="flex items-center justify-between px-3 py-2 border-l border-r border-gray-200 bg-white text-sm">
-
-
         <div className="flex items-center">
-
-          <button onClick={() => handleScroll("up")} className="flex items-center justify-center w-8 h-8 rounded-md hover:bg-gray-100 transition">
-            <ChevronDown className="w-4 h-4" />
+          <button
+            onClick={() => handlePageChange("up")}
+            className="flex items-center justify-center w-8 h-8 rounded-md hover:bg-gray-100 transition"
+          >
+            <ChevronUp className="w-4 h-4" />
           </button>
 
           <div className="mx-2 text-sm text-gray-700 font-medium min-w-[40px] text-center">
-              {currentPage} of {pageCount}
-            </div>
+            {currentPage} of {pageCount}
+          </div>
 
-          <button onClick={() => handleScroll("down")} className="flex items-center justify-center w-8 h-8 rounded-md hover:bg-gray-100 transition">
-            <ChevronUp className="w-4 h-4" />
+          <button
+            onClick={() => handlePageChange("down")}
+            className="flex items-center justify-center w-8 h-8 rounded-md hover:bg-gray-100 transition"
+          >
+            <ChevronDown className="w-4 h-4" />
           </button>
 
           <div className="mx-2 self-stretch w-px bg-gray-300" />
 
           <div className="flex items-center">
-             <button 
-              onClick={handleZoomOut} 
+            <button
+              onClick={handleZoomOut}
               className="flex items-center justify-center w-8 h-8 text-gray-600 hover:bg-gray-50 rounded-l-full transition-colors"
               title="Zoom out"
             >
@@ -184,36 +227,35 @@ export const InvoiceDocument = ({ invoice }) => {
             <span className="text-center text-gray-800 text-l">
               {Math.round(zoom * 100)}%
             </span>
-            <button 
-              onClick={handleZoomIn} 
+            <button
+              onClick={handleZoomIn}
               className="flex items-center justify-center w-8 h-8 text-gray-600 hover:bg-gray-50 rounded-r-full transition-colors"
               title="Zoom in"
             >
               <CirclePlus className="w-4 h-4" />
             </button>
-          </div>  
-          
+          </div>
+
           <div className="mx-2 self-stretch w-px bg-gray-300" />
 
           <div className="flex items-center gap-2">
-        {[
-          { onClick: handleRotateLeft, Icon: RotateCcw, title: "Rotate counterclockwise" },
-          { onClick: handleRotateRight, Icon: RotateCw, title: "Rotate clockwise" },
-          { onClick: handlePrint, Icon: Printer, title: "Print" },
-          { onClick: handleDownload, Icon: Download, title: "Download" },
-          { onClick: openExternal, Icon: ExternalLink, title: "Open in new tab" },
-        ].map(({ onClick, Icon, title }, idx) => (
-          <button
-            key={idx}
-            onClick={onClick}
-            className="flex items-center justify-center w-8 h-8 bg-gray-50 hover:bg-gray-200  rounded-[7px] transition-colors"
-            title={title}
-          >
-            <Icon className="w-4 h-4 text-gray-700" strokeWidth={2.4} />
-          </button>
-        ))}
+            {[
+              { onClick: handleRotateLeft, Icon: RotateCcw, title: "Rotate counterclockwise" },
+              { onClick: handleRotateRight, Icon: RotateCw, title: "Rotate clockwise" },
+              { onClick: handlePrint, Icon: Printer, title: "Print" },
+              { onClick: handleDownload, Icon: Download, title: "Download" },
+              { onClick: openExternal, Icon: ExternalLink, title: "Open in new tab" },
+            ].map(({ onClick, Icon, title }, idx) => (
+              <button
+                key={idx}
+                onClick={onClick}
+                className="flex items-center justify-center w-8 h-8 bg-gray-50 hover:bg-gray-200 rounded-[7px] transition-colors"
+                title={title}
+              >
+                <Icon className="w-4 h-4 text-gray-700" strokeWidth={2.4} />
+              </button>
+            ))}
           </div>
-
         </div>
       </div>
 
@@ -221,8 +263,8 @@ export const InvoiceDocument = ({ invoice }) => {
         ref={scrollContainerRef}
         className="flex-1 p-5 bg-muted overflow-auto custom-scroll"
       >
-       <div ref={pdfContainerRef} className="flex flex-col items-center" />
-</div>
+        <div ref={pdfContainerRef} className="flex flex-col items-center" />
+      </div>
 
       <button
         onClick={togglePageless}
