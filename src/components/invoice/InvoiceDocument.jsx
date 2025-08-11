@@ -1,12 +1,9 @@
 import {
   ChevronUp,
   ChevronDown,
-  RotateCcw,
-  RotateCw,
   Download,
   Printer,
   ExternalLink,
-  File,
   CirclePlus,
   CircleMinus,
 } from "lucide-react";
@@ -14,10 +11,14 @@ import { useEffect, useRef, useState } from "react";
 import * as pdfjsLib from "pdfjs-dist";
 import "pdfjs-dist/build/pdf.worker.entry";
 
+import LeftRotate from "../assets/left-rotate.svg";
+import RightRotate from "../assets/right-rotate.svg";
+import FileIcon from "../assets/sticker-square.svg";
+
 export const InvoiceDocument = ({ invoice }) => {
   const scrollContainerRef = useRef(null);
   const pdfContainerRef = useRef(null);
-  const renderIdRef = useRef(0); // prevent duplicate renders
+  const renderIdRef = useRef(0);
 
   const [pdf, setPdf] = useState(null);
   const [zoom, setZoom] = useState(1);
@@ -46,8 +47,9 @@ export const InvoiceDocument = ({ invoice }) => {
 
         const firstPage = await loadedPdf.getPage(1);
         const viewport = firstPage.getViewport({ scale: 1, rotation: 0 });
-        if (pdfContainerRef.current) {
-          const width = pdfContainerRef.current.parentElement.clientWidth - 20;
+        const parent = pdfContainerRef.current?.parentElement;
+        if (parent) {
+          const width = parent.clientWidth - 20;
           const fitScale = width / viewport.width;
           setZoom(fitScale);
           renderAllPages(loadedPdf, fitScale, 0);
@@ -65,7 +67,9 @@ export const InvoiceDocument = ({ invoice }) => {
       if (!pdf || !pdfContainerRef.current) return;
       pdf.getPage(1).then((page) => {
         const base = page.getViewport({ scale: 1, rotation });
-        const width = pdfContainerRef.current.parentElement.clientWidth - 20;
+        const parent = pdfContainerRef.current?.parentElement;
+        if (!parent) return;
+        const width = parent.clientWidth - 20;
         const fitScale = width / base.width;
         setZoom(fitScale);
         renderAllPages(pdf, fitScale, rotation);
@@ -81,11 +85,14 @@ export const InvoiceDocument = ({ invoice }) => {
 
   useEffect(() => {
     const handleScroll = () => {
-      if (!scrollContainerRef.current) return;
+      if (!scrollContainerRef.current || !pdfContainerRef.current) return;
       const pageElems = pdfContainerRef.current.querySelectorAll(".pdf-page");
+      if (!pageElems.length) return;
+
       let newCurrent = currentPage;
       const containerTop = scrollContainerRef.current.scrollTop;
       let smallestDiff = Infinity;
+
       pageElems.forEach((el, index) => {
         const diff = Math.abs(el.offsetTop - containerTop);
         if (diff < smallestDiff) {
@@ -97,22 +104,19 @@ export const InvoiceDocument = ({ invoice }) => {
     };
 
     const scrollEl = scrollContainerRef.current;
-    if (scrollEl) {
-      scrollEl.addEventListener("scroll", handleScroll);
-    }
+    if (scrollEl) scrollEl.addEventListener("scroll", handleScroll);
     return () => {
       if (scrollEl) scrollEl.removeEventListener("scroll", handleScroll);
     };
-  }, [pdf, currentPage]);
+  }, [pdf]);
 
   const renderAllPages = async (pdfDoc, scale, rot = 0) => {
     if (!pdfContainerRef.current) return;
 
     const thisRenderId = ++renderIdRef.current;
-    pdfContainerRef.current.innerHTML = ""; // clear before rendering
+    pdfContainerRef.current.innerHTML = "";
 
     for (let n = 1; n <= pdfDoc.numPages; n++) {
-      // Cancel if a newer render started
       if (thisRenderId !== renderIdRef.current) return;
 
       const page = await pdfDoc.getPage(n);
@@ -131,6 +135,7 @@ export const InvoiceDocument = ({ invoice }) => {
       } else {
         canvas.style.marginBottom = "8px";
         canvas.style.boxShadow = "none";
+        canvas.style.background = "#fff";
       }
 
       pdfContainerRef.current.appendChild(canvas);
@@ -140,11 +145,11 @@ export const InvoiceDocument = ({ invoice }) => {
 
   const handleZoomIn = () => setZoom((z) => Math.min(z + 0.1, 3));
   const handleZoomOut = () => setZoom((z) => Math.max(z - 0.1, 0.5));
-  const handleRotateLeft = () =>
-    setRotation((r) => ((r - 90 + 360) % 360));
-  const handleRotateRight = () =>
-    setRotation((r) => ((r + 90) % 360));
-  const handleReload = () => pdf && renderAllPages(pdf, zoom, rotation);
+  const handleRotateLeft = () => setRotation((r) => (r - 90 + 360) % 360);
+  const handleRotateRight = () => setRotation((r) => (r + 90) % 360);
+  const handleReload = () => {
+    if (pdf) renderAllPages(pdf, zoom, rotation);
+  };
 
   const handleDownload = () => {
     const a = document.createElement("a");
@@ -156,10 +161,11 @@ export const InvoiceDocument = ({ invoice }) => {
   };
 
   const jumpToPage = (pageNum) => {
+    if (!pdfContainerRef.current || !scrollContainerRef.current) return;
     const pageElems = pdfContainerRef.current.querySelectorAll(".pdf-page");
     if (pageNum < 1 || pageNum > pageCount) return;
     const el = pageElems[pageNum - 1];
-    if (el && scrollContainerRef.current) {
+    if (el) {
       scrollContainerRef.current.scrollTo({
         top: el.offsetTop,
         behavior: "smooth",
@@ -168,8 +174,7 @@ export const InvoiceDocument = ({ invoice }) => {
   };
 
   const handlePageChange = (dir) => {
-    const targetPage =
-      dir === "up" ? currentPage - 1 : currentPage + 1;
+    const targetPage = dir === "up" ? currentPage - 1 : currentPage + 1;
     if (targetPage >= 1 && targetPage <= pageCount) {
       jumpToPage(targetPage);
     }
@@ -192,9 +197,17 @@ export const InvoiceDocument = ({ invoice }) => {
     );
   }
 
+  const actionButtons = [
+    { onClick: handleRotateLeft, kind: "img", src: LeftRotate, title: "Rotate counterclockwise" },
+    { onClick: handleRotateRight, kind: "img", src: RightRotate, title: "Rotate clockwise" },
+    { onClick: handlePrint, kind: "icon", Icon: Printer, title: "Print" },
+    { onClick: handleDownload, kind: "icon", Icon: Download, title: "Download" },
+    { onClick: openExternal, kind: "icon", Icon: ExternalLink, title: "Open in new tab" },
+  ];
+
   return (
     <div className="relative flex flex-col h-full">
-      <div className="flex items-center justify-between px-3 py-2 border-l border-r border-gray-200 bg-white text-sm">
+      <div className="flex items-center justify-between px-3 py-3 border-l border-r border-gray-200 bg-white text-sm">
         <div className="flex items-center">
           <button
             onClick={() => handlePageChange("up")}
@@ -236,23 +249,21 @@ export const InvoiceDocument = ({ invoice }) => {
             </button>
           </div>
 
-          <div className="mx-2 self-stretch w-px bg-gray-300" />
+          <div className="mx-2 h-10 w-px bg-gray-300" />
 
           <div className="flex items-center gap-2">
-            {[
-              { onClick: handleRotateLeft, Icon: RotateCcw, title: "Rotate counterclockwise" },
-              { onClick: handleRotateRight, Icon: RotateCw, title: "Rotate clockwise" },
-              { onClick: handlePrint, Icon: Printer, title: "Print" },
-              { onClick: handleDownload, Icon: Download, title: "Download" },
-              { onClick: openExternal, Icon: ExternalLink, title: "Open in new tab" },
-            ].map(({ onClick, Icon, title }, idx) => (
+            {actionButtons.map((btn, idx) => (
               <button
                 key={idx}
-                onClick={onClick}
+                onClick={btn.onClick}
                 className="flex items-center justify-center w-8 h-8 bg-gray-50 hover:bg-gray-200 rounded-[7px] transition-colors"
-                title={title}
+                title={btn.title}
               >
-                <Icon className="w-4 h-4 text-gray-700" strokeWidth={2.4} />
+                {btn.kind === "icon" ? (
+                  <btn.Icon className="w-4 h-4 text-gray-700" strokeWidth={2.4} />
+                ) : (
+                  <img src={btn.src} alt={btn.title} className="w-5 h-5" />
+                )}
               </button>
             ))}
           </div>
@@ -271,7 +282,7 @@ export const InvoiceDocument = ({ invoice }) => {
         className="absolute bottom-6 right-6 bg-white rounded-xl shadow-md border border-gray-200 p-3 hover:shadow-lg transition-all"
         title={isPageless ? "Switch to Page View" : "Switch to Pageless View"}
       >
-        <File className="h-5 w-5 text-muted-foreground" />
+        <img src={FileIcon} className="h-5 w-5 text-muted-foreground" alt="fileicon" />
       </button>
     </div>
   );

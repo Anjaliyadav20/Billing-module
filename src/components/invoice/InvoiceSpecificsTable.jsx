@@ -1,26 +1,26 @@
 import { useState } from "react";
 import { Check, X } from "lucide-react";
-
+ 
 export const InvoiceSpecificsTable = ({ products = [] }) => {
   const [editIndex, setEditIndex] = useState(null);
   const [editValue, setEditValue] = useState("");
-
+ 
   const startEditing = (index, value) => {
     setEditIndex(index);
     setEditValue(value);
   };
-
+ 
   const saveEdit = (index) => {
     products[index].name = editValue;
     setEditIndex(null);
     setEditValue("");
   };
-
+ 
   const cancelEdit = () => {
     setEditIndex(null);
     setEditValue("");
   };
-
+ 
   if (!products.length) {
     return (
       <div className="text-sm text-muted-foreground py-8 text-center">
@@ -28,15 +28,15 @@ export const InvoiceSpecificsTable = ({ products = [] }) => {
       </div>
     );
   }
-
+ 
   return (
     <div className="border border-border overflow-x-scroll overflow-y-hidden rounded-md bg-white custom-scrollbar">
       <table
         className="w-full text-sm border-collapse"
-        style={{ minWidth: "700px" }} 
+        style={{ minWidth: "700px" }}
       >
         <thead className="bg-[#ffffff] text-[#6b7280] border-b">
-          <tr>
+          <tr className="h-6">
             <th className="text-left px-5 py-3 font-medium whitespace-nowrap"># Product</th>
             <th className="text-left px-5 py-3 font-medium whitespace-nowrap">Product Name</th>
             <th className="text-left px-5 py-3 font-medium whitespace-nowrap">Unit Price</th>
@@ -55,7 +55,7 @@ export const InvoiceSpecificsTable = ({ products = [] }) => {
                     className="border border-border rounded-md px-3 py-2 text-sm w-full bg-white shadow-sm focus:border-border focus:ring-0 outline-none"
                     autoFocus
                   />
-                  <div className="absolute right-0 top-full mt-1 z-10 flex w-[72px] rounded-md border shadow bg-white overflow-hidden">
+                  <div className="absolute right-0 top-[calc(100%-1px)] z-10 flex w-[72px] rounded-b-md border shadow bg-white overflow-hidden">
                     <button
                       onClick={() => saveEdit(idx)}
                       className="w-1/2 p-2 flex items-center justify-center text-green-600 hover:bg-green-50"
@@ -71,7 +71,7 @@ export const InvoiceSpecificsTable = ({ products = [] }) => {
                     </button>
                   </div>
                 </div>
-
+ 
                 ) : (
                   <div
                     className="cursor-pointer"
@@ -89,3 +89,5 @@ export const InvoiceSpecificsTable = ({ products = [] }) => {
     </div>
   );
 };
+ 
+ 

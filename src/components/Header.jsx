@@ -1,5 +1,8 @@
-import { Upload, LayoutGrid, AlignJustify, Layout } from "lucide-react";
+import { Upload,} from "lucide-react";
 import { useRef, useState } from "react";
+import Vector1 from "./assets/vector1.svg"
+import LayoutGrid from "./assets/layout-grid.svg"
+import TableRow from "./assets/table-row.svg"
 
 export const Header = () => {
   const fileInputRef = useRef(null);
@@ -31,7 +34,7 @@ export const Header = () => {
                 : "bg-white text-gray-600 hover:bg-gray-50"
             }`}
           >
-            <LayoutGrid className="w-4 h-4" />
+            <img src={LayoutGrid} alt="layout" className="w-4 h-4"/>
           </button>
           <div className="w-px bg-gray-300" />
           <button
@@ -42,7 +45,7 @@ export const Header = () => {
                 : "bg-white text-gray-600 hover:bg-gray-50"
             }`}
           >
-            <AlignJustify className="w-4 h-4" />
+            <img src={TableRow} alt="tablerow" className="w-4 h-4" />
           </button>
           <div className="w-px bg-gray-300" />
           <button
@@ -53,7 +56,7 @@ export const Header = () => {
                 : "bg-white text-gray-600 hover:bg-gray-50"
             }`}
           >
-            <Layout className="w-4 h-4" />
+            <img src={Vector1} alt="vector" className="w-4 h-4" />
           </button>
         </div>
 

@@ -106,7 +106,6 @@
   }
 }
 
-/* Hide ALL scrollbars globally */
 * {
   scrollbar-width: none; /* Firefox */
   -ms-overflow-style: none; /* IE/Edge */
@@ -116,7 +115,7 @@
   display: none; /* Chrome/Safari/Edge */
 }
 
-/* ✅ Custom horizontal scrollbar ONLY for Invoice Specifics */
+
 .custom-scrollbar {
   overflow-x: auto !important;
   overflow-y: hidden !important;

@@ -11,13 +11,15 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import xero from "../assets/icon.png";
+import Iicon from "../assets/I-icon.svg"
+import GreenIcon from "../assets/GreenIcon.svg"
 
 export const XeroDestination = () => {
   const [isOpen, setIsOpen] = useState(true);
   const toggleOpen = () => setIsOpen((prev) => !prev);
 
   const flatField =
-    "h-10 w-full text-[15px] rounded-md border border-gray-300 bg-white " +
+    "h-10 w-full text-[15px] rounded-lg border border-gray-300 bg-white " +
     "outline-none focus:outline-none focus:ring-0 focus:ring-offset-0 " +
     "focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 " +
     "data-[state=open]:ring-0 data-[state=open]:ring-offset-0 " +
@@ -25,10 +27,10 @@ export const XeroDestination = () => {
 
   return (
     <div className="space-y-3">
-      
+
 
       <div className="rounded-lg bg-white p-4 shadow-sm border border-gray-200">
-      
+
         <div className="relative grid grid-cols-[auto,1fr,auto] grid-rows-[auto,auto,auto] gap-x-3">
           <img
             src={xero}
@@ -41,22 +43,7 @@ export const XeroDestination = () => {
           </div>
 
           <div className="col-start-2 row-start-2 mt-0.5 flex items-center gap-2 text-[13px] text-gray-600">
-            <div className="inline-flex items-center justify-center w-3 h-3 rounded-full bg-emerald-500 shadow-[0_0_0_1px_rgba(16,185,129,0.35)]">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="w-3 h-3 text-white"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={3}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M5 13l4 4L19 7"
-                />
-              </svg>
-            </div>
+            <img src={GreenIcon} alt="greenicon" className="w-3 h-3 text-white" />
             <span>Published on Jan 8, 2022 at 11:11 AM</span>
           </div>
 
@@ -89,23 +76,29 @@ export const XeroDestination = () => {
 
         {isOpen && (
           <div className="space-y-6 pt-4">
-            <div className="flex items-center gap-2 text-[13px] font-medium text-gray-800">
-              Set Preferences <span className="text-black-800 text-s">ⓘ</span>
+            <div className="flex items-center gap-2 text-[14px] font-medium text-gray-800">
+              Set Preferences
+              <img src={Iicon} alt="Iicon" className="text-black-800 text-s" />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  defaultChecked
-                  className="accent-blue-600"
-                />
-                Auto Sync
-              </label>
-              <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" className="accent-blue-600" />
-                Save Configuration
-              </label>
+
+
+            <div className="grid grid-cols-2">
+              <div className="flex items-center gap-4 text-sm">
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    defaultChecked
+                    className="accent-blue-600 w-4 h-4"
+                  />
+                  Auto Sync
+                </label>
+                <label className="flex items-center gap-2">
+                  <input type="checkbox" className="accent-blue-600 w-4 h-4" />
+                  Save Configuration
+                </label>
+              </div>
+
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -148,7 +141,7 @@ export const XeroDestination = () => {
               <Label className="font-medium text-sm text-gray-800">
                 Line Items
               </Label>
-              <div className="flex items-center rounded-md overflow-hidden text-sm border border-gray-300 bg-white">
+              <div className="flex items-center rounded-lg overflow-hidden text-sm border border-gray-300 bg-white">
                 <button className="px-3 py-1.5 font-medium text-blue-600 bg-blue-50">
                   Single
                 </button>
@@ -159,14 +152,14 @@ export const XeroDestination = () => {
             <div>
               <Label className="flex items-center gap-1 text-sm mb-1">
                 Contact<span className="text-red-600">*</span>
-                <span className="text-black-800 text-s">ⓘ</span>
+                <img src={Iicon} alt="Iicon" className="text-black-800 text-s" />
               </Label>
               <Input defaultValue="Eye Dream" className={flatField} />
             </div>
 
             <div>
               <Label className="flex items-center gap-1 text-sm mb-1">
-                Customer<span className="text-black-800 text-s">ⓘ</span>
+                Customer<img src={Iicon} alt="Iicon" className="text-black-800 text-s" />
               </Label>
               <Input defaultValue="Eye Dream" className={flatField} />
             </div>
@@ -193,11 +186,8 @@ export const XeroDestination = () => {
             <div>
               <Label className="text-sm mb-1 block">Description</Label>
               <textarea
-                className="w-full h-28 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:outline-none focus:ring-0 focus:border-gray-300"
-                defaultValue={`Your insurance policies are approaching renewal beginning in mid August. 
-Please find attached all current schedules for your review. Could you please 
-check each one and notify me if there are any changes or updates that need to 
-be made at your earliest.`}
+                className="w-full h-28 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:outline-none focus:ring-0 focus:border-gray-300"
+                defaultValue={`Your insurance policies are approaching renewal beginning in mid August. Please find attached all current schedules for your review. Could you please check each one and notify me if there are any changes or updates that need to be made at your earliest.`}
               />
             </div>
 
@@ -208,7 +198,7 @@ be made at your earliest.`}
               </span>
               <Button
                 size="sm"
-                className="text-sm px-4 h-8 rounded-md bg-white text-black border hover:bg-blue-50"
+                className="text-sm px-4 h-8 rounded-lg bg-white text-black border hover:bg-blue-50"
               >
                 Publish
               </Button>

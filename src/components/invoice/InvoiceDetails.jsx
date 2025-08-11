@@ -8,7 +8,7 @@ import { InvoiceSpecificsTable } from "./InvoiceSpecificsTable.jsx";
 import { ConnectedList } from "./ConnectedList.jsx";
 import { EmailList } from "./Emaillist.jsx";
 import { PriceTrend } from "./PriceTrend.jsx";
-
+ 
 export const InvoiceDetails = ({
   invoice,
   onNext,
@@ -28,7 +28,7 @@ export const InvoiceDetails = ({
       </div>
     );
   }
-
+ 
   const tabs = [
     "Summary",
     "Invoice Specifics",
@@ -38,30 +38,30 @@ export const InvoiceDetails = ({
     "Emails",
     "Price Trend",
   ];
-
+ 
   const statusStyles = {
     "Manual Review": "bg-yellow-50 text-yellow-800 border-yellow-100",
     Processing:
       "bg-purple-50 text-purple-600 border border-purple-200 rounded-full",
-    Approved: "bg-sky-50 text-sky-600 border border-sky-200 rounded-full",
+    Approved: "bg-sky-50 text-sky-600 border-sky-200 rounded-full",
     "AI Approved": "bg-green-50 text-green-800 border-green-100",
     Flagged: "bg-red-50 text-red-800 border-red-100",
   };
-
+ 
   const handlePrevTab = () => {
     const currentIndex = tabs.indexOf(activeTab);
     if (currentIndex > 0) {
       onTabChange(tabs[currentIndex - 1]);
     }
   };
-
+ 
   const handleNextTab = () => {
     const currentIndex = tabs.indexOf(activeTab);
     if (currentIndex < tabs.length - 1) {
       onTabChange(tabs[currentIndex + 1]);
     }
   };
-
+ 
   const renderTabContent = () => {
     switch (activeTab) {
       case "Invoice Specifics":
@@ -94,10 +94,10 @@ export const InvoiceDetails = ({
         return <Summary invoice={invoice} />;
     }
   };
-
+ 
   return (
     <div className="flex flex-col h-full bg-white border-l border-border">
-      {/* Header */}
+ 
       <div className="border-b border-border">
         <div className="flex items-center justify-between px-6 pt-6 pb-3">
           <div className="flex items-center gap-3">
@@ -130,9 +130,9 @@ export const InvoiceDetails = ({
             </button>
           </div>
         </div>
+ 
 
-        {/* Tabs */}
-        <div className="flex items-center gap-6 px-6 text-sm overflow-x-auto custom-scroll">
+        <div className="flex items-center gap-6 px-6 text-sm overflow-x-auto whitespace-nowrap custom-scroll">
           {tabs.map((tab) => (
             <button
               key={tab}
@@ -148,13 +148,13 @@ export const InvoiceDetails = ({
           ))}
         </div>
       </div>
-
-      {/* Content */}
+ 
+  
       <div className="flex-1 overflow-y-auto custom-scroll px-6 py-4 text-sm">
         {renderTabContent()}
       </div>
+ 
 
-      {/* Footer */}
       <div className="border-t border-border px-6 py-4 flex justify-between items-center">
         <button className="flex items-center gap-2 text-sm text-red-600 hover:bg-red-50 px-3 py-2 rounded-md border border-transparent">
           <ArchiveIcon className="w-4 h-4" />
@@ -172,3 +172,5 @@ export const InvoiceDetails = ({
     </div>
   );
 };
+ 
+ 
