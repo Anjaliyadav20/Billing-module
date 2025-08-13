@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import DefaultLayout from "./Layouts/DefaultLayout.jsx";
 import InvoicePages from "./pages/InvoicePages.jsx";
 import NotFound from "./pages/NotFound.jsx";
+import OnboardingLayout from './components/OnboardingLayout/Onboardinglayout';
 
 const queryClient = new QueryClient();
 
@@ -17,8 +18,16 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
-          <Route
+            <Route
             path="/"
+            element={
+              
+                <OnboardingLayout/>
+              
+            }
+          />
+          <Route
+            path="/book_keeping"
             element={
               <DefaultLayout>
                 <InvoicePages />
