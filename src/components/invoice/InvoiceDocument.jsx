@@ -21,7 +21,7 @@ export const InvoiceDocument = ({ invoice }) => {
   const renderIdRef = useRef(0);
 
   const [pdf, setPdf] = useState(null);
-  const [zoom, setZoom] = useState(1);
+  const [zoom, setZoom] = useState(1); // Default 100%
   const [pageCount, setPageCount] = useState(1);
   const [currentPage, setCurrentPage] = useState(1);
   const [isPageless, setIsPageless] = useState(false);
@@ -44,16 +44,7 @@ export const InvoiceDocument = ({ invoice }) => {
         if (cancelled) return;
         setPdf(loadedPdf);
         setPageCount(loadedPdf.numPages);
-
-        const firstPage = await loadedPdf.getPage(1);
-        const viewport = firstPage.getViewport({ scale: 1, rotation: 0 });
-        const parent = pdfContainerRef.current?.parentElement;
-        if (parent) {
-          const width = parent.clientWidth - 20;
-          const fitScale = width / viewport.width;
-          setZoom(fitScale);
-          renderAllPages(loadedPdf, fitScale, 0);
-        }
+        renderAllPages(loadedPdf, 1, 0);
       })
       .catch(console.error);
 
@@ -61,23 +52,6 @@ export const InvoiceDocument = ({ invoice }) => {
       cancelled = true;
     };
   }, [fileUrl]);
-
-  useEffect(() => {
-    const handleResize = () => {
-      if (!pdf || !pdfContainerRef.current) return;
-      pdf.getPage(1).then((page) => {
-        const base = page.getViewport({ scale: 1, rotation });
-        const parent = pdfContainerRef.current?.parentElement;
-        if (!parent) return;
-        const width = parent.clientWidth - 20;
-        const fitScale = width / base.width;
-        setZoom(fitScale);
-        renderAllPages(pdf, fitScale, rotation);
-      });
-    };
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, [pdf, rotation]);
 
   useEffect(() => {
     if (pdf) renderAllPages(pdf, zoom, rotation);
@@ -143,7 +117,7 @@ export const InvoiceDocument = ({ invoice }) => {
     }
   };
 
-  const handleZoomIn = () => setZoom((z) => Math.min(z + 0.1, 3));
+  const handleZoomIn = () => setZoom((z) => Math.min(z + 0.1, 1)); // Max 100%
   const handleZoomOut = () => setZoom((z) => Math.max(z - 0.1, 0.5));
   const handleRotateLeft = () => setRotation((r) => (r - 90 + 360) % 360);
   const handleRotateRight = () => setRotation((r) => (r + 90) % 360);
@@ -206,7 +180,7 @@ export const InvoiceDocument = ({ invoice }) => {
   ];
 
   return (
-    <div className="relative flex flex-col h-full">
+    <div className="relative flex flex-col h-full w-full max-w-[95vw] sm:max-w-[90vw] md:max-w-[950px] lg:max-w-[900px]">
       <div className="flex items-center justify-between px-3 py-3 border-l border-r border-gray-200 bg-white text-sm">
         <div className="flex items-center">
           <button
@@ -256,7 +230,7 @@ export const InvoiceDocument = ({ invoice }) => {
               <button
                 key={idx}
                 onClick={btn.onClick}
-                className="flex items-center justify-center w-8 h-8 bg-gray-50 hover:bg-gray-200 rounded-[7px] transition-colors"
+                className="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-100 transition"
                 title={btn.title}
               >
                 {btn.kind === "icon" ? (
@@ -282,7 +256,7 @@ export const InvoiceDocument = ({ invoice }) => {
         className="absolute bottom-6 right-6 bg-white rounded-xl shadow-md border border-gray-200 p-3 hover:shadow-lg transition-all"
         title={isPageless ? "Switch to Page View" : "Switch to Pageless View"}
       >
-        <img src={FileIcon} className="h-5 w-5 text-muted-foreground" alt="fileicon" />
+        <img src={FileIcon} className="h-5 w-5 object-contain" alt="fileicon" />
       </button>
     </div>
   );

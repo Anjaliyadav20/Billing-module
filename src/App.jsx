@@ -3,13 +3,15 @@ import { Toaster as Sonner } from "@/components/ui/sonner.jsx";
 import { TooltipProvider } from "@/components/ui/tooltip.jsx";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-
+ 
 import DefaultLayout from "./Layouts/DefaultLayout.jsx";
 import InvoicePages from "./pages/InvoicePages.jsx";
 import NotFound from "./pages/NotFound.jsx";
-
+import ContactsPage from "./pages/ContactsPage.jsx";
+ 
+ 
 const queryClient = new QueryClient();
-
+ 
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -17,18 +19,30 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
-          <Route
-            path="/"
-            element={
-              <DefaultLayout>
-                <InvoicePages />
-              </DefaultLayout>
-            }
-          />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+            <Route
+              path="/"
+              element={
+                <DefaultLayout>
+                  <InvoicePages />
+                </DefaultLayout>
+              }
+            />
+            <Route
+              path="/contacts"
+              element={
+                <DefaultLayout>
+                  <ContactsPage />
+                </DefaultLayout>
+              }
+            />
+            
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+ 
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
 );
 export default App;
+ 
+ 
