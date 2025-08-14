@@ -3,15 +3,17 @@ import { Sidebar } from "../components/Sidebar.jsx";
 import { Header } from "../components/Header.jsx";
 
 export default function DefaultLayout({ children }) {
+  const hideHeader = location.pathname === "/contacts";
+
   return (
     <div className="flex h-screen w-full overflow-hidden bg-[#F1F3FD]">
-      {/* Sidebar */}
+
       <div className="flex-shrink-0 bg-[#F1F3FD]">
         <Sidebar />
       </div>
 
-      {/* Main floating content */}
-      <div className="flex-1 h-full overflow-hidden pr-3 pt-3 pb-3"> {/* Removed left padding */}
+   
+      <div className="flex-1 h-full overflow-hidden pr-3 pt-3 pb-3"> 
         <div
           className="
             h-full
@@ -24,7 +26,7 @@ export default function DefaultLayout({ children }) {
           "
         >
           <div className="flex h-full flex-col bg-white">
-            <Header />
+            {!hideHeader && <Header />}
             <main className="flex-1 overflow-auto bg-white">
               {children}
             </main>
