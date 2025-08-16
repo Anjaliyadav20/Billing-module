@@ -5,48 +5,38 @@ import { InvoiceDetails } from "../components/invoice/InvoiceDetails.jsx";
 import { InvoiceTabs } from "../components/invoice/InvoiceTabs.jsx";
 import { invoices as rawInvoices } from "../components/invoice/InvoiceData.jsx";
 import FoldersPanel from "../components/invoice/FolderPannel.jsx";
+import { Folder } from "lucide-react";
+import MultipleLineItems from "../components/invoice/MutipleLineItems.jsx"; 
 
-/**
- * Company folders are nested under "Uploads":
- *  - All Documents (N)
- *  - Uploads (N)
- *      - <Company A> (x)
- *      - <Company B> (y)
- *  - Trash (0)
- *
- * New:
- *  - Folders panel is CLOSED by default.
- *  - A thin blue left rail is shown; clicking it slides the folder panel open.
- *  - Folders panel is still resizable when open.
- */
-const Index = () => {
+const InvoicePages = () => {
   const containerRef = useRef(null);
+
+  // resize guards
   const isResizingFolders = useRef(false);
   const isResizingList = useRef(false);
   const isResizingDoc = useRef(false);
 
-  // widths for panels (folders is adjustable)
-  const [foldersWidth, setFoldersWidth] = useState(260);
+  // widths
+  const [foldersWidth, setFoldersWidth] = useState(300);
   const [listWidth, setListWidth] = useState(300);
-  const [docWidth, setDocWidth] = useState(460);
+  const [docWidth, setDocWidth] = useState(600);
+  const baseDocWidthRef = useRef(600);
 
+  // selections / tabs
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [detailsTab, setDetailsTab] = useState("Summary");
   const [invoiceTab, setInvoiceTab] = useState("All");
 
-  // Folders CLOSED by default; blue rail opens it
+  // folders
   const [foldersOpen, setFoldersOpen] = useState(false);
-
-  // Selected folder: "All Documents" | "Uploads" | <Company>
   const [selectedFolder, setSelectedFolder] = useState("All Documents");
-
-  // File being previewed
   const [selectedDocUrl, setSelectedDocUrl] = useState(null);
 
-  // Width of the blue rail when folders are closed
-  const RAIL_WIDTH = 6;
+  // when folders open, details should collapse
+  const [detailsCollapsed, setDetailsCollapsed] = useState(false);
 
-  // Normalize invoices – ensure previewUrl
+  const RAIL_WIDTH = 26; // old rail width
+
   const invoices = useMemo(
     () =>
       (rawInvoices || []).map((inv) => ({
@@ -56,22 +46,27 @@ const Index = () => {
     []
   );
 
-  // Apply the Tab filter once (so folder counts reflect the active tab)
   const tabFilteredAll = useMemo(() => {
     const norm = (s = "") => s.toLowerCase().trim();
     if (invoiceTab === "All") return invoices;
+
     if (invoiceTab === "Review") {
       return invoices.filter((inv) => {
         const s = norm(inv.status);
-        return s === "manual review" || s.includes("manual review") || (s.includes("manual") && s.includes("review"));
+        return (
+          s === "manual review" ||
+          s.includes("manual review") ||
+          (s.includes("manual") && s.includes("review"))
+        );
       });
     }
-    if (invoiceTab === "Approved") return invoices.filter((inv) => norm(inv.status).includes("approved"));
-    if (invoiceTab === "Archived") return invoices.filter((inv) => norm(inv.status).includes("archived"));
+    if (invoiceTab === "Approved")
+      return invoices.filter((inv) => norm(inv.status).includes("approved"));
+    if (invoiceTab === "Archived")
+      return invoices.filter((inv) => norm(inv.status).includes("archived"));
     return invoices;
   }, [invoices, invoiceTab]);
 
-  // Build company list + counts FROM the tab-filtered set
   const companyChildren = useMemo(() => {
     const counts = new Map();
     tabFilteredAll.forEach((inv) => {
@@ -83,46 +78,57 @@ const Index = () => {
       .map(([name, count]) => ({ name, count, children: [] }));
   }, [tabFilteredAll]);
 
-  // Final folders tree (companies nested under "Uploads")
-  const foldersTree = useMemo(() => {
+  const [foldersTree, setFoldersTree] = useState(() => {
     const total = tabFilteredAll.length;
     return [
       { name: "All Documents", count: total, children: [] },
       { name: "Uploads", count: total, children: companyChildren },
       { name: "Trash", count: 0, children: [] },
     ];
+  });
+
+  useEffect(() => {
+    const total = tabFilteredAll.length;
+    setFoldersTree((prev) => {
+      const updated = [...prev];
+      const uploadsIndex = updated.findIndex((f) => f.name === "Uploads");
+      if (uploadsIndex !== -1) {
+        updated[uploadsIndex] = {
+          ...updated[uploadsIndex],
+          count: total,
+          children: companyChildren,
+        };
+      }
+      const allDocsIndex = updated.findIndex((f) => f.name === "All Documents");
+      if (allDocsIndex !== -1) {
+        updated[allDocsIndex] = { ...updated[allDocsIndex], count: total };
+      }
+      return updated;
+    });
   }, [tabFilteredAll, companyChildren]);
 
-  // "Documents" list for the left panel (each invoice = one doc under its company)
   const allDocuments = useMemo(() => {
     return invoices.map((inv) => ({
       company: inv.company,
       date: inv.date || "",
       amount: inv.totalAmount || "—",
       status: "note",
-      folder: inv.company || "Unknown", // company name is treated as the folder for the doc row
+      folder: inv.company || "Unknown",
       fileUrl: inv.previewUrl,
       _invoiceId: inv.id,
     }));
   }, [invoices]);
 
-  // Docs to pass to Folder panel:
-  // - If a company is active, only that company's docs.
-  // - If "All Documents" or "Uploads", pass ALL (so expanding companies shows their docs).
   const documentsForFolders = useMemo(() => {
     if (selectedFolder === "All Documents" || selectedFolder === "Uploads") return allDocuments;
     return allDocuments.filter((d) => d.folder === selectedFolder);
   }, [allDocuments, selectedFolder]);
 
-  // Invoices for center list:
-  // - If a company is active => just that company.
-  // - If "All Documents" or "Uploads" => tab-filtered set.
   const invoicesForList = useMemo(() => {
     if (selectedFolder === "All Documents" || selectedFolder === "Uploads") return tabFilteredAll;
     return tabFilteredAll.filter((inv) => inv.company === selectedFolder);
   }, [tabFilteredAll, selectedFolder]);
 
-  // Initial selection
   useEffect(() => {
     if (invoices.length > 0) {
       setSelectedInvoice(invoices[0]);
@@ -130,7 +136,6 @@ const Index = () => {
     }
   }, [invoices]);
 
-  // Keep selection valid when folder/tab filters change
   useEffect(() => {
     if (!selectedInvoice) {
       if (invoicesForList.length > 0) {
@@ -146,32 +151,121 @@ const Index = () => {
     }
   }, [selectedFolder, invoiceTab, invoicesForList, selectedInvoice]);
 
-  // Upload (simple preview)
   const handleUpload = (file) => {
     if (!file) return;
     const fileUrl = URL.createObjectURL(file);
     setSelectedDocUrl(fileUrl);
   };
 
-  // Click doc inside folder panel: open it and sync selection
   const handleSelectDocument = (doc) => {
     setSelectedDocUrl(doc.fileUrl);
     const inv = invoices.find((i) => i.id === doc._invoiceId);
     if (inv) setSelectedInvoice(inv);
   };
 
-  const handleDelete = () => {
-    // No-op placeholder
+  // folder actions
+  const handleRenameFolder = (folderToRename) => {
+    const newName = prompt("Enter new folder name:", folderToRename.name);
+    if (!newName || newName === folderToRename.name) return;
+
+    const renameRecursive = (folders) =>
+      folders.map((f) =>
+        f.name === folderToRename.name
+          ? { ...f, name: newName }
+          : { ...f, children: renameRecursive(f.children || []) }
+      );
+
+    setFoldersTree((prev) => renameRecursive(prev));
+
+    if (selectedFolder === folderToRename.name) {
+      setSelectedFolder(newName);
+    }
   };
 
-  // Resizers
+  const handleDeleteFolder = (folderToDelete) => {
+    if (!window.confirm(`Delete folder "${folderToDelete.name}"?`)) return;
+
+    const deleteRecursive = (folders) =>
+      folders
+        .filter((f) => f.name !== folderToDelete.name)
+        .map((f) => ({ ...f, children: deleteRecursive(f.children || []) }));
+
+    setFoldersTree((prev) => deleteRecursive(prev));
+
+    if (selectedFolder === folderToDelete.name) {
+      setSelectedFolder("All Documents");
+    }
+  };
+
+  const handleAddFolder = () => {
+    const folderName = prompt("Enter new folder name:");
+    if (!folderName) return;
+    setFoldersTree((prev) => {
+      const updated = [...prev];
+      const uploadsIndex = updated.findIndex((f) => f.name === "Uploads");
+      if (uploadsIndex !== -1) {
+        updated[uploadsIndex] = {
+          ...updated[uploadsIndex],
+          children: [...updated[uploadsIndex].children, { name: folderName, count: 0, children: [] }],
+        };
+      }
+      return updated;
+    });
+  };
+
+  const handleDownloadFolderFiles = (folder) => {
+    const docs = documentsForFolders.filter(
+      (doc) => folder.name === "All Documents" || doc.folder === folder.name
+    );
+    if (docs.length === 0) {
+      alert("No files to download.");
+      return;
+    }
+    docs.forEach((doc) => {
+      const link = document.createElement("a");
+      link.href = doc.fileUrl;
+      link.download = `${doc.company}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    });
+  };
+
+  const csvEscape = (val = "") => {
+    const s = String(val ?? "");
+    // Wrap in quotes and escape inner quotes
+    return `"${s.replace(/"/g, '""')}"`;
+  };
+
+  const handleExportFolderCSV = (folder) => {
+    const docs = documentsForFolders.filter(
+      (doc) => folder.name === "All Documents" || doc.folder === folder.name
+    );
+    if (docs.length === 0) {
+      alert("No data to export.");
+      return;
+    }
+    const csvRows = ["Company,Date,Amount,Status"];
+    docs.forEach((d) => {
+      csvRows.push(
+        [csvEscape(d.company), csvEscape(d.date), csvEscape(d.amount), csvEscape(d.status)].join(",")
+      );
+    });
+    const blob = new Blob([csvRows.join("\n")], { type: "text/csv" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `${folder.name}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   useEffect(() => {
     const handleMouseMove = (e) => {
       if (!containerRef.current) return;
       const left = containerRef.current.getBoundingClientRect().left;
 
       if (isResizingFolders.current) {
-        // distance from container's left edge = new folders width
         const newWidth = e.clientX - left;
         const min = 180;
         const max = 420;
@@ -179,15 +273,15 @@ const Index = () => {
       }
 
       if (isResizingList.current) {
-        const start = foldersOpen ? foldersWidth : RAIL_WIDTH;
+        const start = foldersOpen ? foldersWidth : 0;
         const newWidth = e.clientX - left - start;
-        if (newWidth >= 200 && newWidth <= 400) setListWidth(newWidth);
+        if (newWidth >= 200 && newWidth <= 500) setListWidth(newWidth);
       }
 
       if (isResizingDoc.current) {
-        const start = (foldersOpen ? foldersWidth : RAIL_WIDTH) + listWidth + 5;
+        const start = (foldersOpen ? foldersWidth : 0) + listWidth + 5;
         const newDocWidth = e.clientX - left - start;
-        if (newDocWidth >= 300 && newDocWidth <= 700) setDocWidth(newDocWidth);
+        if (newDocWidth >= 400 && newDocWidth <= 1200) setDocWidth(newDocWidth);
       }
     };
 
@@ -205,19 +299,69 @@ const Index = () => {
     };
   }, [listWidth, foldersOpen, foldersWidth]);
 
+  useEffect(() => {
+    if (foldersOpen) {
+      setDetailsCollapsed(true);
+    } else {
+      setDetailsCollapsed(false);
+    }
+  }, [foldersOpen]);
+
+  useEffect(() => {
+    if (detailsCollapsed) {
+      baseDocWidthRef.current = docWidth;
+      setDocWidth((w) => Math.min(w + 360, 1200));
+    } else {
+      setDocWidth(baseDocWidthRef.current || 600);
+    }
+  }, [detailsCollapsed]);
+
+  // MultipleLineItems modal
+  const [showMultipleLineItems, setShowMultipleLineItems] = useState(false);
+  const [lineItems, setLineItems] = useState([]);
+
+  const updateLineItem = (index, newItem) => {
+    setLineItems((prev) => {
+      const updated = [...prev];
+      updated[index] = newItem;
+      return updated;
+    });
+  };
+
+  const addLineItem = (item) => setLineItems((prev) => [...prev, item]);
+  const removeLineItem = (index) => setLineItems((prev) => prev.filter((_, i) => i !== index));
+
+  const saveLineItems = () => {
+    console.log("Saved line items:", lineItems);
+    setShowMultipleLineItems(false);
+  };
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.detail?.items) {
+        setLineItems(e.detail.items);
+      } else {
+        setLineItems([]);
+      }
+      setShowMultipleLineItems(true);
+    };
+    window.addEventListener("open-multiple-line-items", handler);
+    return () => window.removeEventListener("open-multiple-line-items", handler);
+  }, []);
+
+  const calcTotal = useMemo(
+    () =>
+      lineItems.reduce((sum, i) => {
+        const qty = Number(i?.quantity ?? 0);
+        const price = Number(i?.unitPrice ?? 0);
+        return sum + qty * price;
+      }, 0),
+    [lineItems]
+  );
+
   return (
     <div className="flex h-full w-full overflow-hidden" ref={containerRef}>
-      {/* BLUE OPEN RAIL (visible only when folders are closed) */}
-      {!foldersOpen && (
-        <button
-          className="h-full w-20 bg-blue-600 hover:bg-blue-500 transition-colors"
-          style={{ width: RAIL_WIDTH }}
-          onClick={() => setFoldersOpen(true)}
-          title="Open folders"
-        />
-      )}
-
-      {/* LEFT FOLDERS PANEL (slides open) */}
+      {/* Folders panel */}
       <FoldersPanel
         open={foldersOpen}
         width={foldersWidth}
@@ -228,12 +372,15 @@ const Index = () => {
         documents={documentsForFolders}
         tags={["statement (2)"]}
         onSelectFolder={setSelectedFolder}
-        onDelete={handleDelete}
         onSelectDocument={handleSelectDocument}
         activeFolder={selectedFolder}
+        onAddFolder={handleAddFolder}
+        onDownloadFolderFiles={handleDownloadFolderFiles}
+        onExportFolderCSV={handleExportFolderCSV}
+        onRenameFolder={handleRenameFolder}
+        onDeleteFolder={handleDeleteFolder}
       />
 
-      {/* Resizer between folders and list (only when open) */}
       {foldersOpen && (
         <div
           onMouseDown={() => (isResizingFolders.current = true)}
@@ -242,25 +389,26 @@ const Index = () => {
         />
       )}
 
-      {/* LIST + DOC container */}
       <div
         className="flex flex-col bg-white border-r border-border overflow-hidden"
         style={{
-          width: (foldersOpen ? foldersWidth : RAIL_WIDTH) + listWidth + docWidth + 10,
+          width: listWidth + docWidth + 10,
         }}
       >
-        {/* Tabs reflect the currently filtered set */}
-        <div className="border-b border-border bg-white">
-          <InvoiceTabs
-            activeTab={invoiceTab}
-            onTabChange={setInvoiceTab}
-            invoices={invoicesForList}
-          />
+        <div className="border-b border-border bg-white flex items-center ">
+          <button
+            onClick={() => setFoldersOpen(true)}
+            className="p-2 hover:bg-gray-100 rounded   pt-4 pl-4"
+            title="Show folders"
+          >
+            <Folder size={20} />
+          </button>
+          <InvoiceTabs activeTab={invoiceTab} onTabChange={setInvoiceTab} invoices={invoices} />
         </div>
 
         <div className="flex flex-1 overflow-hidden">
-          {/* INVOICE LIST */}
-          <div style={{ width: listWidth }} className="overflow-y-auto bg-white">
+          {/* Invoice List */}
+          <div style={{ width: listWidth, flexShrink: 0 }}>
             <InvoiceList
               invoices={invoicesForList}
               activeTab={invoiceTab}
@@ -273,37 +421,70 @@ const Index = () => {
             />
           </div>
 
-          {/* resizer between list and doc */}
           <div
             onMouseDown={() => (isResizingList.current = true)}
             className="w-1 cursor-col-resize bg-transparent"
+            title="Resize list"
           />
 
-          {/* DOCUMENT PREVIEW */}
-          <div style={{ width: docWidth }} className="overflow-y-auto">
+          {/* Document area */}
+          <div style={{ width: docWidth, maxWidth: "100%", padding: "0 10px" }} className="overflow-y-auto">
             <InvoiceDocument invoice={selectedInvoice} fileUrl={selectedDocUrl} />
           </div>
         </div>
       </div>
 
-      {/* resizer between doc and details */}
-      <div onMouseDown={() => (isResizingDoc.current = true)} className="relative">
-        <div className="absolute top-0 left-[-3px] w-[7px] h-full cursor-col-resize bg-transparent" />
-        <div className="w-px h-full bg-transparent" />
-      </div>
+      {!detailsCollapsed && (
+        <div onMouseDown={() => (isResizingDoc.current = true)} className="relative" title="Resize document">
+          <div className="absolute top-0 left-[-3px] w-[7px] h-full cursor-col-resize bg-transparent" />
+        </div>
+      )}
 
-      {/* RIGHT DETAILS */}
-      <div className="flex-1 overflow-y-auto">
-        <InvoiceDetails
-          invoice={selectedInvoice}
-          onNext={() => {}}
-          onPrev={() => {}}
-          activeTab={detailsTab}
-          onTabChange={setDetailsTab}
+      {detailsCollapsed ? (
+        <button
+          onClick={() => {
+            setDetailsCollapsed(false);
+            setFoldersOpen(false);
+          }}
+          className="h-full text-white-700 bg-blue-500 hover:bg-blue-600 transition-colors"
+          style={{
+            width: RAIL_WIDTH,
+            writingMode: "vertical-rl",
+            transform: "rotate(180deg)",
+            letterSpacing: "0.04em",
+            fontWeight: 600,
+          }}
+          title="Edit Document"
+        >
+          Edit Document
+        </button>
+      ) : (
+        <div className="flex flex-1 overflow-y-auto">
+          <InvoiceDetails
+            invoice={selectedInvoice}
+            onNext={() => {}}
+            onPrev={() => {}}
+            activeTab={detailsTab}
+            onTabChange={setDetailsTab}
+          />
+        </div>
+      )}
+
+      {/* MultipleLineItems modal */}
+      {showMultipleLineItems && (
+        <MultipleLineItems
+          lineItems={lineItems}
+          updateLineItem={updateLineItem}
+          addLineItem={addLineItem}
+          removeLineItem={removeLineItem}
+          subtotal={calcTotal}
+          total={calcTotal}
+          setLineItemMode={() => setShowMultipleLineItems(false)}
+          saveLineItems={saveLineItems}
         />
-      </div>
+      )}
     </div>
   );
 };
 
-export default Index;
+export default InvoicePages;

@@ -1,13 +1,11 @@
 import { useState, useEffect, useMemo } from "react";
 import { Search, Mail, Phone, Calendar, Plus } from "lucide-react";
-import Alphabet from "../components/assets/alphabet.svg"
-import Location from "../components/assets/location.svg"
-import Filter from "../components/assets/filter.png"
+import Alphabet from "../components/assets/alphabet.svg";
+import Location from "../components/assets/location.svg";
+import Filter from "../components/assets/filter.png";
 import SendEmail from "./SendEmail";
-import Office from "../components/assets/office.svg"
-import Square from "../components/assets/square.png"
-
-
+import Office from "../components/assets/office.svg";
+import Square from "../components/assets/square.png";
 
 const rawContacts = [
   {
@@ -21,8 +19,8 @@ const rawContacts = [
     initials: "AS",
     color: "#3B82F6",
     notes: [
-      "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but ",
-      "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry",
+      "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but ",
+      "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry",
     ],
   },
   {
@@ -137,61 +135,99 @@ const rawContacts = [
   },
 ];
 
+function computeInitials(firstName, lastName, fallbackName = "") {
+  const parts = [firstName, lastName]
+    .map((s) => (s || "").trim())
+    .filter((s) => s.length > 0);
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return fallbackName ? fallbackName.slice(0, 2).toUpperCase() : "NC";
+}
 
 export default function ContactsPage() {
+  const [contactList, setContactList] = useState(rawContacts);
   const [selectedContact, setSelectedContact] = useState(null);
+
   const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState("sent");
+  const [filter, setFilter] = useState("sent"); // currently cosmetic
   const [sortByNameAsc, setSortByNameAsc] = useState(true);
   const [isEmailModalOpen, setEmailModalOpen] = useState(false);
 
   const [isEditing, setIsEditing] = useState(false);
   const [editableContact, setEditableContact] = useState(null);
+
   const [newNote, setNewNote] = useState("");
   const [isCreatingNote, setIsCreatingNote] = useState(false);
   const [copiedIndex, setCopiedIndex] = useState(null);
 
-
   const [showNewContactForm, setShowNewContactForm] = useState(false);
   const [newContactData, setNewContactData] = useState({
-    name: "",
+    firstName: "",
+    lastName: "",
     email: "",
     phone: "",
     joined: "",
     location: "",
   });
-  const [contactList, setContactList] = useState(rawContacts);
-  const contacts = contactList;
 
+  // keep selection sane when list changes
   useEffect(() => {
-    if (contacts.length > 0) setSelectedContact(contacts[0]);
-    else setSelectedContact(null);
-  }, [contacts]);
+    if (!selectedContact && contactList.length > 0) {
+      setSelectedContact(contactList[0]);
+    } else if (
+      selectedContact &&
+      !contactList.some((c) => c.id === selectedContact.id)
+    ) {
+      setSelectedContact(contactList[0] || null);
+    }
+  }, [contactList]); // depend on contactList only
 
-  const filtered = contacts
-    .filter((c) => {
-      if (!query) return true;
-      const q = query.toLowerCase();
-      return c.name.toLowerCase().includes(q) || c.email.toLowerCase().includes(q);
-    })
-    .sort((a, b) => {
-      if (!sortByNameAsc) return b.name.localeCompare(a.name);
-      return a.name.localeCompare(b.name);
-    });
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const base = q
+      ? contactList.filter(
+          (c) =>
+            c.name.toLowerCase().includes(q) ||
+            c.email.toLowerCase().includes(q)
+        )
+      : contactList.slice();
 
-  const handleSendEmailClick = () => {
-    setEmailModalOpen(true);
-  };
+    base.sort((a, b) =>
+      sortByNameAsc
+        ? a.name.localeCompare(b.name)
+        : b.name.localeCompare(a.name)
+    );
+    return base;
+  }, [contactList, query, sortByNameAsc]);
+
+  const handleSendEmailClick = () => setEmailModalOpen(true);
 
   const handleDeleteContact = () => {
     if (!selectedContact) return;
-    const updatedList = contactList.filter((c) => c.id !== selectedContact.id);
-    setContactList(updatedList);
-    if (updatedList.length > 0) {
-      setSelectedContact(updatedList[0]);
-    } else {
-      setSelectedContact(null);
-    }
+    setContactList((prev) => prev.filter((c) => c.id !== selectedContact.id));
+  };
+
+  const handleSaveEdits = () => {
+    if (!editableContact) return;
+    setContactList((prev) =>
+      prev.map((c) => (c.id === editableContact.id ? { ...editableContact } : c))
+    );
+    setSelectedContact({ ...editableContact });
+    setIsEditing(false);
+    setEditableContact(null);
+  };
+
+  const handleAddNote = () => {
+    if (!selectedContact || !newNote.trim()) return;
+    const updatedNotes = [newNote.trim(), ...(selectedContact.notes || [])];
+    const updated = { ...selectedContact, notes: updatedNotes };
+
+    setContactList((prev) =>
+      prev.map((c) => (c.id === updated.id ? updated : c))
+    );
+    setSelectedContact(updated);
+    setIsCreatingNote(false);
+    setNewNote("");
   };
 
   return (
@@ -227,12 +263,10 @@ export default function ContactsPage() {
 
       {showNewContactForm && (
         <>
-
           <div
             className="fixed inset-0 bg-black bg-opacity-40 z-40"
             onClick={() => setShowNewContactForm(false)}
           />
-
 
           <div className="fixed inset-0 flex items-center justify-center z-50">
             <div
@@ -240,23 +274,32 @@ export default function ContactsPage() {
               onClick={(e) => e.stopPropagation()}
             >
               <h2 className="text-lg font-semibold mb-4">Add New Contact</h2>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {["name", "email", "phone", "joined", "location"].map((field) => (
+                {[
+                  { key: "firstName", ph: "First name" },
+                  { key: "lastName", ph: "Last name" },
+                  { key: "email", ph: "Email" },
+                  { key: "phone", ph: "Phone" },
+                  { key: "joined", ph: "Joined" },
+                  { key: "location", ph: "Location" },
+                ].map(({ key, ph }) => (
                   <input
-                    key={field}
+                    key={key}
                     type="text"
                     className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-full"
-                    placeholder={field.charAt(0).toUpperCase() + field.slice(1)}
-                    value={newContactData[field]}
+                    placeholder={ph}
+                    value={newContactData[key]}
                     onChange={(e) =>
                       setNewContactData((prev) => ({
                         ...prev,
-                        [field]: e.target.value,
+                        [key]: e.target.value,
                       }))
                     }
                   />
                 ))}
               </div>
+
               <div className="mt-4 flex justify-end gap-2">
                 <button
                   onClick={() => setShowNewContactForm(false)}
@@ -266,15 +309,23 @@ export default function ContactsPage() {
                 </button>
                 <button
                   onClick={() => {
-                    const initials = newContactData.name
-                      .split(" ")
-                      .map((n) => n[0])
-                      .join("")
-                      .toUpperCase();
+                    const first = (newContactData.firstName || "").trim();
+                    const last = (newContactData.lastName || "").trim();
+                    const fullName = `${first} ${last}`.trim(); // ✅ fixed template-string bug
+
+                    const initials = computeInitials(
+                      first,
+                      last,
+                      fullName || "NC"
+                    );
 
                     const newContact = {
-                      ...newContactData,
                       id: Date.now(),
+                      name: fullName || "Unnamed",
+                      email: newContactData.email.trim(),
+                      phone: newContactData.phone.trim(),
+                      joined: newContactData.joined.trim(),
+                      location: newContactData.location.trim(),
                       initials,
                       company: "New Company",
                       color: "#3B82F6",
@@ -284,12 +335,16 @@ export default function ContactsPage() {
                     setContactList((prev) => [newContact, ...prev]);
                     setShowNewContactForm(false);
                     setNewContactData({
-                      name: "",
+                      firstName: "",
+                      lastName: "",
                       email: "",
                       phone: "",
                       joined: "",
                       location: "",
                     });
+                    setSelectedContact(newContact);
+                    setIsEditing(false);
+                    setEditableContact(null);
                   }}
                   className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm rounded-lg"
                 >
@@ -319,19 +374,17 @@ export default function ContactsPage() {
               <div className="inline-flex border border-gray-300 rounded-[8px] overflow-hidden w-auto">
                 <button
                   onClick={() => setFilter("sent")}
-                  className={`px-3 py-1 text-sm font-medium transition-colors ${filter === "sent"
-                    ? "bg-indigo-50 text-indigo-700"
-                    : "bg-white text-gray-700"
-                    }`}
+                  className={`px-3 py-1 text-sm font-medium transition-colors ${
+                    filter === "sent" ? "bg-indigo-50 text-indigo-700" : "bg-white text-gray-700"
+                  }`}
                 >
                   Sent
                 </button>
                 <button
                   onClick={() => setFilter("received")}
-                  className={`px-3 py-1 text-sm font-medium transition-colors border-l border-gray-200 ${filter === "received"
-                    ? "bg-indigo-50 text-indigo-700"
-                    : "bg-white text-gray-700"
-                    }`}
+                  className={`px-3 py-1 text-sm font-medium transition-colors border-l border-gray-200 ${
+                    filter === "received" ? "bg-indigo-50 text-indigo-700" : "bg-white text-gray-700"
+                  }`}
                 >
                   Received
                 </button>
@@ -357,8 +410,9 @@ export default function ContactsPage() {
                   setEditableContact(null);
                   setIsCreatingNote(false);
                 }}
-                className={`flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-gray-50 ${selectedContact?.id === c.id ? "bg-gray-50" : ""
-                  } ${idx !== filtered.length - 1 ? "border-b border-gray-200" : ""}`}
+                className={`flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-gray-50 ${
+                  selectedContact?.id === c.id ? "bg-gray-50" : ""
+                } ${idx !== filtered.length - 1 ? "border-b border-gray-200" : ""}`}
               >
                 <div
                   className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-semibold"
@@ -378,7 +432,7 @@ export default function ContactsPage() {
           </div>
         </div>
 
-
+        {/* Right Panel */}
         <div className="flex-1 bg-white overflow-auto px-6 py-6">
           {selectedContact ? (
             <>
@@ -393,8 +447,8 @@ export default function ContactsPage() {
                   <div>
                     {isEditing ? (
                       <input
-                        className="border-b border-gray-300 bg-transparent outline-none text-xl font-semibold"
-                        value={editableContact.name}
+                        className="border-b border-gray-300 bg-transparent outline-none text-sm text-gray-800 w-full max-w-md"
+                        value={editableContact?.name ?? ""}
                         onChange={(e) =>
                           setEditableContact({
                             ...editableContact,
@@ -403,15 +457,11 @@ export default function ContactsPage() {
                         }
                       />
                     ) : (
-                      <div className="text-xl font-semibold">
-                        {selectedContact.name}
-                      </div>
+                      <div className="text-xl font-semibold">{selectedContact.name}</div>
                     )}
                     <div className="text-sm text-gray-600 mt-1 flex items-center gap-1">
                       <img src={Office} alt="office" className="w-4 h-4 text-gray-500" />
-                      <span className="text-gray-900">
-                        {selectedContact.company}
-                      </span>
+                      <span className="text-gray-900">{selectedContact.company}</span>
                     </div>
                   </div>
                 </div>
@@ -427,9 +477,7 @@ export default function ContactsPage() {
                   <button
                     onClick={() => {
                       if (isEditing) {
-                        setSelectedContact(editableContact);
-                        setIsEditing(false);
-                        setEditableContact(null);
+                        handleSaveEdits();
                       } else {
                         setEditableContact({ ...selectedContact });
                         setIsEditing(true);
@@ -459,11 +507,15 @@ export default function ContactsPage() {
                     {field === "email" && <Mail className="w-4 h-4 mr-2 mt-1" />}
                     {field === "phone" && <Phone className="w-4 h-4 mr-2 mt-1" />}
                     {field === "joined" && <Calendar className="w-4 h-4 mr-2 mt-1" />}
-                    {field === "location" && <img src={Location} alt="location" className="w-4 h-4 mr-2 mt-1" />}
+                    {field === "location" && (
+                      <img src={Location} alt="location" className="w-4 h-4 mr-2 mt-1" />
+                    )}
+
+                    {/* underline spans full width in both modes */}
                     {isEditing ? (
                       <input
-                        className="border-b border-gray-300 bg-transparent outline-none text-sm text-gray-800"
-                        value={editableContact[field]}
+                        className="flex-1 min-w-0 border-b border-gray-300 bg-transparent outline-none text-sm text-gray-800 pb-0.5"
+                        value={editableContact?.[field] ?? ""}
                         onChange={(e) =>
                           setEditableContact({
                             ...editableContact,
@@ -472,7 +524,7 @@ export default function ContactsPage() {
                         }
                       />
                     ) : (
-                      <div className="font-medium text-sm text-gray-800">
+                      <div className="flex-1 min-w-0 border-b border-gray-300 font-medium text-sm text-gray-800 pb-0.5 truncate">
                         {selectedContact[field]}
                       </div>
                     )}
@@ -480,13 +532,20 @@ export default function ContactsPage() {
                 ))}
               </div>
 
-
-              <div className="mt-6" onClick={(e) => {
-                if (isCreatingNote && !e.target.closest("textarea") && !e.target.closest("button")) {
-                  setIsCreatingNote(false);
-                  setNewNote("");
-                }
-              }}>
+              {/* Notes */}
+              <div
+                className="mt-6"
+                onClick={(e) => {
+                  if (
+                    isCreatingNote &&
+                    !e.target.closest("textarea") &&
+                    !e.target.closest("button")
+                  ) {
+                    setIsCreatingNote(false);
+                    setNewNote("");
+                  }
+                }}
+              >
                 <div className="flex items-center justify-between mb-3">
                   <div className="text-sm font-semibold text-gray-700">Notes</div>
                   <button
@@ -509,18 +568,11 @@ export default function ContactsPage() {
                     <div className="flex justify-end">
                       <button
                         className="mt-2 px-3 py-1 mb-2 bg-indigo-600 text-white text-sm rounded-lg"
-                        onClick={() => {
-                          const updatedNotes = [newNote, ...(selectedContact.notes || [])];
-                          const updated = { ...selectedContact, notes: updatedNotes };
-                          setSelectedContact(updated);
-                          setIsCreatingNote(false);
-                          setNewNote("");
-                        }}
+                        onClick={handleAddNote}
                       >
                         Save Note
                       </button>
                     </div>
-
                   </div>
                 )}
 
@@ -530,14 +582,14 @@ export default function ContactsPage() {
                       key={i}
                       className="relative p-4 bg-gray-50 rounded-xl border border-gray-300 text-sm text-gray-800 shadow-sm"
                     >
-                      <p className="leading-relaxed">{note}</p>
+                      <p className="leading-relaxed whitespace-pre-wrap">{note}</p>
 
                       <button
                         title="Copy note"
                         onClick={() => {
                           navigator.clipboard.writeText(note);
                           setCopiedIndex(i);
-                          setTimeout(() => setCopiedIndex(null), 2000); // Hide after 2s
+                          setTimeout(() => setCopiedIndex(null), 2000);
                         }}
                         className="absolute bottom-2 right-2 inline-flex items-center justify-center w-7 h-7 rounded-md text-gray-600 hover:text-indigo-600"
                       >
@@ -552,21 +604,14 @@ export default function ContactsPage() {
                     </div>
                   ))}
 
-
-
-
-
                   {!selectedContact.notes?.length && (
                     <div className="text-gray-400 text-sm italic">No notes added yet.</div>
                   )}
                 </div>
               </div>
-
             </>
           ) : (
-            <div className="text-center text-gray-500">
-              Select a contact to view details
-            </div>
+            <div className="text-center text-gray-500">Select a contact to view details</div>
           )}
         </div>
       </div>

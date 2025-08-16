@@ -472,7 +472,6 @@ export const ACCOUNT_CODES = [
 // Tax Rate options (shared by Summary & XeroDestination)
 export const TAX_RATES = [
   { value: "GST on Expenses 10%", label: "GST on Expenses 10%" },
-  { value: "GST Free", label: "GST Free" },
   { value: "extracted_amount", label: "Extracted Amount" },
   { value: "bas_excluded_0", label: "BAS Excluded 0%" },
   { value: "gst_free_expenses_0", label: "GST Free Expenses 0%" },

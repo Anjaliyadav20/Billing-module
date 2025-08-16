@@ -164,7 +164,7 @@ export const InvoiceDetails = ({
           <button className="text-sm border px-4 py-2 rounded-md hover:bg-gray-100">
             Mark as Paid
           </button>
-          <button className="bg-blue-600 hover:bg-blue-700 text-white text-sm px-4 py-2 rounded-md">
+          <button className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition">
             Verify & Publish
           </button>
         </div>

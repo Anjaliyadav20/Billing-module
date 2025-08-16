@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect } from "react";
+// components/invoice/Summary.jsx
+import { useState, useRef, useEffect, useMemo } from "react";
 import { Calendar } from "lucide-react";
 import { Input } from "@/components/ui/input.jsx";
 import { Label } from "@/components/ui/label.jsx";
@@ -9,8 +10,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select.jsx";
-import { XeroDestination } from "./XeroDestination";
-import { TAX_RATES,ACCOUNT_CODES } from "./InvoiceData.jsx"; // ✅ path ok
+import {XeroDestination} from "./XeroDestination";
+import { TAX_RATES, ACCOUNT_CODES, invoices as invoiceRows } from "./InvoiceData.jsx"; // <-- bring invoices here
 
 export const Summary = ({ invoice }) => {
   const [tags, setTags] = useState(["Defaulter", "Paid"]);
@@ -21,10 +22,43 @@ export const Summary = ({ invoice }) => {
 
   const formatDate = (date) => date.toISOString().split("T")[0];
 
-  // Defaults
-  const defaultDate = new Date(2025, 5, 20); // 20 June 2025
+  const defaultDate = new Date(2025, 5, 20); 
   const defaultDueDate = new Date(defaultDate);
   defaultDueDate.setDate(defaultDueDate.getDate() + 7);
+
+  const baseSuppliers = useMemo(() => {
+    const set = new Set(
+      (invoiceRows || []).map((r) => (r.company || "").trim()).filter(Boolean)
+    );
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, []);
+
+  const [suppliers, setSuppliers] = useState(baseSuppliers);
+  const [newSupplierOpen, setNewSupplierOpen] = useState(false);
+  const [newSupplierName, setNewSupplierName] = useState("");
+
+  const ensureSupplierPresent = (name) => {
+    if (!name) return;
+    setSuppliers((prev) => {
+      if (prev.includes(name)) return prev;
+      const next = [...prev, name].sort((a, b) => a.localeCompare(b));
+      return next;
+    });
+  };
+
+  // ✅ UI tweak: make "Extracted amount" first and default
+  const PRIORITY_TAX_VALUE = "extracted_amount";
+
+  // Put "Extracted amount" first in the dropdown render order
+  const ORDERED_TAX_RATES = useMemo(() => {
+    const arr = [...(TAX_RATES || [])];
+    const i = arr.findIndex((x) => x.value === PRIORITY_TAX_VALUE);
+    if (i > 0) {
+      const [item] = arr.splice(i, 1);
+      arr.unshift(item);
+    }
+    return arr;
+  }, []);
 
   const [formData, setFormData] = useState({
     documentType: "invoice",
@@ -34,36 +68,35 @@ export const Summary = ({ invoice }) => {
     dueDate: formatDate(defaultDueDate),
     totalAmount: "$1,337.36",
     currency: "AUD",
-    taxRate: "GST on Expenses 10%",
+    // ✅ default to "Extracted amount"
+    taxRate: PRIORITY_TAX_VALUE,
   });
 
+  const defaultTaxablePortion =
+    TAX_RATES.find((t) => /10%/.test(t.label) && /Expenses/i.test(t.label))?.value ??
+    TAX_RATES[0]?.value ??
+    "";
 
+  const UNTAXED_ONLY = TAX_RATES.filter(({ label }) =>
+    /free|excluded/i.test(label) || /(^|[^0-9])0%($|[^0-9])/i.test(label)
+  );
 
-  // defaults
-const defaultTaxablePortion =
-  TAX_RATES.find(t => /10%/.test(t.label) && /Expenses/i.test(t.label))?.value
-  ?? TAX_RATES[0]?.value ?? "";
+  const defaultUntaxedPortion =
+    TAX_RATES.find((t) => /(Free|0%|Excluded)/i.test(t.label))?.value ??
+    TAX_RATES[0]?.value ??
+    "";
 
-const defaultUntaxedPortion =
-  TAX_RATES.find(t => /(Free|0%|Excluded)/i.test(t.label))?.value
-  ?? TAX_RATES[0]?.value ?? "";
+  const defaultAccount =
+    ACCOUNT_CODES?.find((c) => /^\s*200\s*-\s*Sales/i.test(c)) ?? ACCOUNT_CODES?.[0] ?? "";
 
-const defaultAccount =
-  ACCOUNT_CODES?.find(c => /^\s*200\s*-\s*Sales/i.test(c))
-  ?? ACCOUNT_CODES?.[0] ?? "";
+  const [autoTwoLines, setAutoTwoLines] = useState({
+    taxAmount: "",
+    taxablePortion: defaultTaxablePortion,
+    untaxedPortion: defaultUntaxedPortion,
+    account: defaultAccount,
+  });
+  const updateAutoTwo = (k, v) => setAutoTwoLines((prev) => ({ ...prev, [k]: v }));
 
-// panel state
-const [autoTwoLines, setAutoTwoLines] = useState({
-  taxAmount: "",
-  taxablePortion: defaultTaxablePortion,
-  untaxedPortion: defaultUntaxedPortion,
-  account: defaultAccount,
-});
-
-const updateAutoTwo = (k, v) =>
-  setAutoTwoLines(prev => ({ ...prev, [k]: v }));
-
-  // Update when invoice changes
   useEffect(() => {
     if (invoice) {
       const dateObj = invoice.date ? new Date(invoice.date) : defaultDate;
@@ -71,15 +104,19 @@ const updateAutoTwo = (k, v) =>
         ? new Date(invoice.dueDate)
         : new Date(dateObj.getTime() + 7 * 24 * 60 * 60 * 1000);
 
+      const nextSupplier = invoice.company || "";
+      ensureSupplierPresent(nextSupplier);
+
       setFormData({
         documentType: invoice.documentType || "invoice",
-        supplier: invoice.company || "",
+        supplier: nextSupplier,
         invoiceNumber: invoice.invoiceNumber || "",
         date: formatDate(dateObj),
         dueDate: formatDate(dueDateObj),
         totalAmount: invoice.totalAmount || "$1,337.36",
         currency: invoice.currency || "AUD",
-        taxRate: invoice.taxRate || "GST on Expenses 10%",
+        // ✅ When invoice doesn't specify, keep "Extracted amount" as default
+        taxRate: invoice.taxRate || PRIORITY_TAX_VALUE,
       });
 
       setTags(invoice.tags || ["Defaulter", "Paid"]);
@@ -111,6 +148,24 @@ const updateAutoTwo = (k, v) =>
     "h-10 w-full text-sm rounded-lg border border-input bg-white pl-3 outline-none focus:outline-none focus:ring-0 focus:ring-offset-0 focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 focus:border-input";
 
   const demoDestinations = [{ id: 1, name: "Xero" }];
+
+  const openNewSupplier = () => {
+    setNewSupplierName("");
+    setNewSupplierOpen(true);
+  };
+  const saveNewSupplier = () => {
+    const name = newSupplierName.trim();
+    if (!name) return;
+    ensureSupplierPresent(name);
+    handleChange("supplier", name);
+    setNewSupplierOpen(false);
+  };
+
+  const handleGenerateLineItems = () => {
+    window.dispatchEvent(
+      new CustomEvent("open-multiple-line-items", { detail: autoTwoLines })
+    );
+  };
 
   return (
     <>
@@ -151,15 +206,41 @@ const updateAutoTwo = (k, v) =>
         </Select>
       </div>
 
+      {/* Supplier field */}
       <div className="mt-4">
         <Label>
           Supplier <span className="text-red-600">*</span>
         </Label>
-        <Input
-          value={formData.supplier}
-          onChange={(e) => handleChange("supplier", e.target.value)}
-          className={flatField + " mt-2"}
-        />
+        <Select
+          value={formData.supplier || ""}
+          onValueChange={(value) => {
+            if (value === "_new_") {
+              openNewSupplier();
+            } else {
+              handleChange("supplier", value);
+            }
+          }}
+        >
+          <SelectTrigger className={flatSelectTrigger + " mt-2"}>
+            <SelectValue placeholder="Select supplier" />
+          </SelectTrigger>
+          <SelectContent
+            position="popper"
+            side="bottom"
+            align="start"
+            sideOffset={6}
+            avoidCollisions={false}
+            className="z-[120] max-h-[calc(100vh-160px)] overflow-auto"
+          >
+            <SelectItem value="_new_"> + New supplier…</SelectItem>
+            <div className="my-1 h-px bg-gray-200" />
+            {suppliers.map((name) => (
+              <SelectItem key={name} value={name}>
+                {name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="mt-4">
@@ -215,6 +296,7 @@ const updateAutoTwo = (k, v) =>
         </div>
       </div>
 
+      {/* Total & Currency */}
       <div className="grid grid-cols-2 gap-4 mt-4">
         <div>
           <Label>
@@ -251,10 +333,7 @@ const updateAutoTwo = (k, v) =>
         </div>
       </div>
 
-
-
-
-      {/* ✅ Correct Tax Rate field for Summary (no item/idx here) */}
+      {/* Tax Rate */}
       <div className="mt-4">
         <Label>Tax Rate</Label>
         <Select
@@ -273,7 +352,8 @@ const updateAutoTwo = (k, v) =>
             className="z-[120] w-[var(--radix-select-trigger-width)] min-w-[var(--radix-select-trigger-width)]
                        max-h-[calc(100vh-160px)] overflow-auto scroll-pb-4"
           >
-            {TAX_RATES.map(({ value, label }) => (
+            {/* ✅ Render with Extracted amount at the top */}
+            {ORDERED_TAX_RATES.map(({ value, label }) => (
               <SelectItem key={value} value={value}>
                 {label}
               </SelectItem>
@@ -282,104 +362,121 @@ const updateAutoTwo = (k, v) =>
         </Select>
       </div>
 
+      {/* Extracted Amount Panel */}
+      {formData.taxRate === "extracted_amount" && (
+        <div className="mt-4 rounded-md border border-gray-200 bg-gray-50 p-4">
+          <div className="text-sm font-medium mb-3">Auto-calculate two line items</div>
+          <div className="grid grid-cols-2 gap-4 items-center">
+            {/* Tax Amount */}
+            <div className="col-span-2 sm:col-span-1">
+              <Label className="text-xs">Tax Amount:</Label>
+              <input
+                type="number"
+                step="0.01"
+                inputMode="decimal"
+                placeholder="10.00"
+                value={autoTwoLines.taxAmount}
+                onChange={(e) => updateAutoTwo("taxAmount", e.target.value)}
+                className={flatField + " mt-1"}
+              />
+            </div>
+            {/* Taxable Portion */}
+            <div className="col-span-2 sm:col-span-1">
+              <Label className="text-xs">Taxable Portion:</Label>
+              <Select
+                value={autoTwoLines.taxablePortion}
+                onValueChange={(v) => updateAutoTwo("taxablePortion", v)}
+              >
+                <SelectTrigger className={flatSelectTrigger + " mt-1"}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent
+                  position="popper"
+                  side="bottom"
+                  align="start"
+                  sideOffset={6}
+                  avoidCollisions={false}
+                >
+                  {TAX_RATES.map(({ value, label }) => (
+                    <SelectItem key={value} value={value}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {/* Untaxed Portion */}
+            <div className="col-span-2 sm:col-span-1">
+              <Label className="text-xs">Untaxed Portion:</Label>
+              <Select
+                value={autoTwoLines.untaxedPortion}
+                onValueChange={(v) => updateAutoTwo("untaxedPortion", v)}
+              >
+                <SelectTrigger className={flatSelectTrigger + " mt-1"}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent
+                  position="popper"
+                  side="bottom"
+                  align="start"
+                  sideOffset={6}
+                  avoidCollisions={false}
+                >
+                  {UNTAXED_ONLY.map(({ value, label }) => (
+                    <SelectItem key={value} value={value}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {/* Account */}
+            <div className="col-span-2 sm:col-span-1">
+              <Label className="text-xs">Account:</Label>
+              <Select
+                value={autoTwoLines.account}
+                onValueChange={(v) => updateAutoTwo("account", v)}
+              >
+                <SelectTrigger className={flatSelectTrigger + " mt-1"}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent
+                  position="popper"
+                  side="bottom"
+                  align="start"
+                  sideOffset={6}
+                  avoidCollisions={false}
+                >
+                  {ACCOUNT_CODES.map((code) => (
+                    <SelectItem key={code} value={code}>
+                      {code}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
 
-      
-      {/* SHOW auto-calc only when Extracted Amount selected */}
-{formData.taxRate === "extracted_amount" && (
-  <div className="mt-4 rounded-md border border-gray-200 bg-gray-50 p-4">
-    <div className="text-sm font-medium mb-3">Auto-calculate two line items</div>
+          <div className="mt-4 flex items-center gap-4">
+            <button
+              type="button"
+              onClick={handleGenerateLineItems}
+              className="px-4 py-2 rounded-md bg-sky-600 text-white text-sm font-medium hover:bg-sky-700"
+            >
+              Generate Line Items
+            </button>
+            <button
+              type="button"
+              onClick={handleGenerateLineItems}
+              className="text-sky-700 hover:underline text-sm"
+            >
+              Or enter manually
+            </button>
+          </div>
+        </div>
+      )}
 
-    <div className="grid grid-cols-2 gap-4 items-center">
-      {/* Tax Amount */}
-      <div className="col-span-2 sm:col-span-1">
-        <Label className="text-xs">Tax Amount:</Label>
-        <input
-          type="number"
-          step="0.01"
-          inputMode="decimal"
-          placeholder="10.00"
-          value={autoTwoLines.taxAmount}
-          onChange={(e) => updateAutoTwo("taxAmount", e.target.value)}
-          className={flatField + " mt-1"}
-        />
-      </div>
-
-      {/* Taxable Portion */}
-      <div className="col-span-2 sm:col-span-1">
-        <Label className="text-xs">Taxable Portion:</Label>
-        <Select
-          value={autoTwoLines.taxablePortion}
-          onValueChange={(v) => updateAutoTwo("taxablePortion", v)}
-        >
-          <SelectTrigger className={flatSelectTrigger + " mt-1"}>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent position="popper" side="bottom" align="start" sideOffset={6} avoidCollisions={false}>
-            {TAX_RATES.map(({ value, label }) => (
-              <SelectItem key={value} value={value}>{label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* Untaxed Portion */}
-      <div className="col-span-2 sm:col-span-1">
-        <Label className="text-xs">Untaxed Portion:</Label>
-        <Select
-          value={autoTwoLines.untaxedPortion}
-          onValueChange={(v) => updateAutoTwo("untaxedPortion", v)}
-        >
-          <SelectTrigger className={flatSelectTrigger + " mt-1"}>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent position="popper" side="bottom" align="start" sideOffset={6} avoidCollisions={false}>
-            {TAX_RATES
-              .filter(t => /(Free|0%|Excluded)/i.test(t.label))
-              .map(({ value, label }) => (
-                <SelectItem key={value} value={value}>{label}</SelectItem>
-              ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* Account */}
-      <div className="col-span-2 sm:col-span-1">
-        <Label className="text-xs">Account:</Label>
-        <Select
-          value={autoTwoLines.account}
-          onValueChange={(v) => updateAutoTwo("account", v)}
-        >
-          <SelectTrigger className={flatSelectTrigger + " mt-1"}>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent position="popper" side="bottom" align="start" sideOffset={6} avoidCollisions={false}>
-            {ACCOUNT_CODES.map((code) => (
-              <SelectItem key={code} value={code}>{code}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-    </div>
-
-    <div className="mt-4 flex items-center gap-4">
-      <button
-        type="button"
-        onClick={() => window.dispatchEvent(new CustomEvent("generate-line-items", { detail: autoTwoLines }))}
-        className="px-4 py-2 rounded-md bg-sky-600 text-white text-sm font-medium hover:bg-sky-700"
-      >
-        Generate Line Items
-      </button>
-      <button
-        type="button"
-        onClick={() => window.dispatchEvent(new CustomEvent("open-multiple-line-items"))}
-        className="text-sky-700 hover:underline text-sm"
-      >
-        Or enter manually
-      </button>
-    </div>
-  </div>
-)}
-
+      {/* Subtotal & Total */}
       <div className="mt-4 space-y-2">
         <div className="flex justify-between text-sm text-muted-foreground">
           <span>Subtotal</span>
@@ -410,19 +507,20 @@ const updateAutoTwo = (k, v) =>
             placeholder="Type tag & hit ↵ to add"
             className={flatField + " mt-2"}
           />
-          <div className="flex flex-wrap gap-2 mt-2 text-xs">
-            {tags.map((tag, i) => (
-              <span
-                key={i}
-                className="px-2 py-1 bg-muted border border-border rounded-full flex items-center gap-1"
-              >
-                {tag}
-                <button onClick={() => removeTag(tag)} className="text-xs font-bold">
-                  ✕
-                </button>
-              </span>
-            ))}
-          </div>
+        </div>
+
+        <div className="flex flex-wrap gap-2 mt-2 text-xs">
+          {tags.map((tag, i) => (
+            <span
+              key={i}
+              className="px-2 py-1 bg-muted border border-border rounded-full flex items-center gap-1"
+            >
+              {tag}
+              <button onClick={() => removeTag(tag)} className="text-xs font-bold">
+                ✕
+              </button>
+            </span>
+          ))}
         </div>
 
         <div className="max-w-[650px] mx-auto space-y-1 ">
@@ -432,6 +530,47 @@ const updateAutoTwo = (k, v) =>
           ))}
         </div>
       </div>
+
+      {/* New Supplier Modal */}
+      {newSupplierOpen && (
+        <>
+          <div
+            className="fixed inset-0 bg-black/40 z-40"
+            onClick={() => setNewSupplierOpen(false)}
+          />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="w-full max-w-md bg-white rounded-2xl shadow-xl border border-gray-200 p-5">
+              <div className="text-base font-semibold">Add New Supplier</div>
+              <div className="mt-3">
+                <Label className="text-sm">Supplier name</Label>
+                <Input
+                  autoFocus
+                  value={newSupplierName}
+                  onChange={(e) => setNewSupplierName(e.target.value)}
+                  placeholder="e.g., Avantor Performance Pvt Ltd"
+                  className="mt-2 h-10"
+                />
+              </div>
+              <div className="mt-5 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setNewSupplierOpen(false)}
+                  className="px-4 py-2 text-sm rounded-lg border hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={saveNewSupplier}
+                  className="px-4 py-2 text-sm rounded-lg bg-indigo-600 text-white hover:bg-indigo-700"
+                >
+                  Save
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </>
   );
 };

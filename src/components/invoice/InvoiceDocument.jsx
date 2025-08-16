@@ -21,14 +21,86 @@ export const InvoiceDocument = ({ invoice }) => {
   const renderIdRef = useRef(0);
 
   const [pdf, setPdf] = useState(null);
-  const [zoom, setZoom] = useState(1); // Default 100%
+  const [zoom, setZoom] = useState(1);
   const [pageCount, setPageCount] = useState(1);
   const [currentPage, setCurrentPage] = useState(1);
   const [isPageless, setIsPageless] = useState(false);
   const [rotation, setRotation] = useState(0);
 
-  const fileUrl = invoice?.previewUrl || "/invoices/sample_invoice.pdf";
+  // --- Notes state ---
+  const [isNotesOpen, setIsNotesOpen] = useState(false);
+  const [noteText, setNoteText] = useState("");
+  const autosaveTimer = useRef(null);
 
+  const baseScaleRef = useRef(1);
+
+  const fileUrl = invoice?.previewUrl || "/invoices/sample_invoice.pdf";
+  const invoiceKey = `invoiceNotes:${invoice?.id ?? fileUrl}`;
+
+  const getParentWidth = () => {
+    const parent = pdfContainerRef.current?.parentElement;
+    if (!parent) return 0;
+    const styles = window.getComputedStyle(parent);
+    const padL = parseFloat(styles.paddingLeft || "0");
+    const padR = parseFloat(styles.paddingRight || "0");
+    const gutter = 20;
+    return Math.max(0, parent.clientWidth - padL - padR - gutter);
+  };
+
+  const computeFitScale = async (doc, rot = 0) => {
+    const firstPage = await doc.getPage(1);
+    const baseViewport = firstPage.getViewport({ scale: 1, rotation: rot });
+    const width = getParentWidth();
+    if (!width || !baseViewport.width) return 1;
+    return width / baseViewport.width;
+  };
+
+  const renderAllPages = async (pdfDoc, scale, rot = 0) => {
+    if (!pdfContainerRef.current) return;
+
+    const thisRenderId = ++renderIdRef.current;
+    pdfContainerRef.current.innerHTML = "";
+
+    for (let n = 1; n <= pdfDoc.numPages; n++) {
+      if (thisRenderId !== renderIdRef.current) return;
+
+      const page = await pdfDoc.getPage(n);
+      const viewport = page.getViewport({ scale, rotation: rot });
+
+      const canvas = document.createElement("canvas");
+      canvas.className = "pdf-page";
+      const ctx = canvas.getContext("2d");
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+
+      if (!isPageless) {
+        canvas.style.marginBottom = "20px";
+        canvas.style.boxShadow = "0 0 8px rgba(0,0,0,.12)";
+        canvas.style.borderRadius = "6px";
+        canvas.style.background = "#fff";
+      } else {
+        canvas.style.marginBottom = "8px";
+        canvas.style.boxShadow = "none";
+        canvas.style.background = "#fff";
+      }
+
+      canvas.style.maxWidth = "100%";
+      canvas.style.height = "auto";
+      canvas.style.display = "block";
+
+      pdfContainerRef.current.appendChild(canvas);
+      await page.render({ canvasContext: ctx, viewport }).promise;
+    }
+  };
+
+  const fitAndRender = async (doc, rot = rotation) => {
+    const fitScale = await computeFitScale(doc, rot);
+    baseScaleRef.current = fitScale;
+    setZoom(fitScale);
+    await renderAllPages(doc, fitScale, rot);
+  };
+
+  // ---------- Load PDF ----------
   useEffect(() => {
     let cancelled = false;
     if (!fileUrl) return;
@@ -44,7 +116,7 @@ export const InvoiceDocument = ({ invoice }) => {
         if (cancelled) return;
         setPdf(loadedPdf);
         setPageCount(loadedPdf.numPages);
-        renderAllPages(loadedPdf, 1, 0);
+        await fitAndRender(loadedPdf, 0);
       })
       .catch(console.error);
 
@@ -55,7 +127,7 @@ export const InvoiceDocument = ({ invoice }) => {
 
   useEffect(() => {
     if (pdf) renderAllPages(pdf, zoom, rotation);
-  }, [zoom, pdf, isPageless, rotation]);
+  }, [zoom, isPageless, rotation, pdf]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -84,41 +156,41 @@ export const InvoiceDocument = ({ invoice }) => {
     };
   }, [pdf]);
 
-  const renderAllPages = async (pdfDoc, scale, rot = 0) => {
+  // ---------- Resize handling ----------
+  useEffect(() => {
     if (!pdfContainerRef.current) return;
 
-    const thisRenderId = ++renderIdRef.current;
-    pdfContainerRef.current.innerHTML = "";
+    const parent = pdfContainerRef.current.parentElement;
+    if (!parent) return;
 
-    for (let n = 1; n <= pdfDoc.numPages; n++) {
-      if (thisRenderId !== renderIdRef.current) return;
+    const ro = new ResizeObserver(async () => {
+      if (!pdf) return;
+      const newFit = await computeFitScale(pdf, rotation);
+      baseScaleRef.current = newFit;
 
-      const page = await pdfDoc.getPage(n);
-      const viewport = page.getViewport({ scale, rotation: rot });
-      const canvas = document.createElement("canvas");
-      canvas.className = "pdf-page";
-      const ctx = canvas.getContext("2d");
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
+      const hadCustomZoom = Math.abs(zoom - baseScaleRef.current) > 1e-6;
+      const updatedZoom = hadCustomZoom ? newFit * (zoom / (zoom || newFit)) : newFit;
 
-      if (!isPageless) {
-        canvas.style.marginBottom = "20px";
-        canvas.style.boxShadow = "0 0 8px rgba(0,0,0,.12)";
-        canvas.style.borderRadius = "6px";
-        canvas.style.background = "#fff";
-      } else {
-        canvas.style.marginBottom = "8px";
-        canvas.style.boxShadow = "none";
-        canvas.style.background = "#fff";
-      }
+      setZoom(updatedZoom);
+      await renderAllPages(pdf, updatedZoom, rotation);
+    });
 
-      pdfContainerRef.current.appendChild(canvas);
-      await page.render({ canvasContext: ctx, viewport }).promise;
-    }
-  };
+    ro.observe(parent);
+    return () => ro.disconnect();
+  }, [pdf, rotation, zoom]);
 
-  const handleZoomIn = () => setZoom((z) => Math.min(z + 0.1, 1)); // Max 100%
-  const handleZoomOut = () => setZoom((z) => Math.max(z - 0.1, 0.5));
+  useEffect(() => {
+    const onWinResize = async () => {
+      if (!pdf) return;
+      await fitAndRender(pdf, rotation);
+    };
+    window.addEventListener("resize", onWinResize);
+    return () => window.removeEventListener("resize", onWinResize);
+  }, [pdf, rotation]);
+
+  // ---------- Zoom/rotate ----------
+  const handleZoomIn = () => setZoom((z) => Math.min(z * 1.1, baseScaleRef.current * 4));
+  const handleZoomOut = () => setZoom((z) => Math.max(z / 1.1, baseScaleRef.current * 0.1));
   const handleRotateLeft = () => setRotation((r) => (r - 90 + 360) % 360);
   const handleRotateRight = () => setRotation((r) => (r + 90) % 360);
   const handleReload = () => {
@@ -158,6 +230,40 @@ export const InvoiceDocument = ({ invoice }) => {
   const togglePageless = () => setIsPageless((v) => !v);
   const handlePrint = () => window.print();
 
+  useEffect(() => {
+    const saved = localStorage.getItem(invoiceKey);
+    setNoteText(saved ?? "");
+    const open = localStorage.getItem(`${invoiceKey}:open`) === "1";
+    setIsNotesOpen(open);
+  }, [invoiceKey]);
+
+  const saveNote = (text = noteText) => {
+    localStorage.setItem(invoiceKey, text);
+  };
+
+  // 🆕 Clear/cancel notes (removes from localStorage too)
+  const handleCancelNote = () => {
+    setNoteText("");
+    localStorage.removeItem(invoiceKey); // remove stored note
+  };
+
+  const handleNoteChange = (e) => {
+    const val = e.target.value;
+    setNoteText(val);
+
+    // Debounced autosave
+    if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
+    autosaveTimer.current = setTimeout(() => {
+      saveNote(val);
+    }, 500);
+  };
+
+  const handleToggleNotes = () => {
+    const next = !isNotesOpen;
+    setIsNotesOpen(next);
+    localStorage.setItem(`${invoiceKey}:open`, next ? "1" : "0");
+  };
+
   if (!invoice) {
     return (
       <div className="flex items-center justify-center h-full text-muted-foreground">
@@ -177,11 +283,15 @@ export const InvoiceDocument = ({ invoice }) => {
     { onClick: handlePrint, kind: "icon", Icon: Printer, title: "Print" },
     { onClick: handleDownload, kind: "icon", Icon: Download, title: "Download" },
     { onClick: openExternal, kind: "icon", Icon: ExternalLink, title: "Open in new tab" },
+    { onClick: handleToggleNotes, kind: "text", label: "Notes", title: "Notes" },
   ];
 
+  const percent = Math.round((zoom / (baseScaleRef.current || 1)) * 100);
+
   return (
-    <div className="relative flex flex-col h-full w-full max-w-[95vw] sm:max-w-[90vw] md:max-w-[950px] lg:max-w-[900px]">
-      <div className="flex items-center justify-between px-3 py-3 border-l border-r border-gray-200 bg-white text-sm">
+    <div className="relative flex flex-col h-full ">
+      {/* Top toolbar */}
+      <div className="flex items-center justify-between px-3 py-3 border-l border-r border-gray-200 bg-white text-sm flex-wrap gap-2">
         <div className="flex items-center">
           <button
             onClick={() => handlePageChange("up")}
@@ -211,9 +321,7 @@ export const InvoiceDocument = ({ invoice }) => {
             >
               <CircleMinus className="w-4 h-4" />
             </button>
-            <span className="text-center text-gray-800 text-l">
-              {Math.round(zoom * 100)}%
-            </span>
+            <span className="text-center text-gray-800 text-l">{percent}%</span>
             <button
               onClick={handleZoomIn}
               className="flex items-center justify-center w-8 h-8 text-gray-600 hover:bg-gray-50 rounded-r-full transition-colors"
@@ -226,37 +334,83 @@ export const InvoiceDocument = ({ invoice }) => {
           <div className="mx-2 h-10 w-px bg-gray-300" />
 
           <div className="flex items-center gap-2">
-            {actionButtons.map((btn, idx) => (
-              <button
-                key={idx}
-                onClick={btn.onClick}
-                className="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-100 transition"
-                title={btn.title}
-              >
-                {btn.kind === "icon" ? (
-                  <btn.Icon className="w-4 h-4 text-gray-700" strokeWidth={2.4} />
-                ) : (
-                  <img src={btn.src} alt={btn.title} className="w-5 h-5" />
-                )}
-              </button>
-            ))}
+            {actionButtons.map((btn, idx) => {
+              const isLast = idx === actionButtons.length - 1;
+              const activeNotes = isLast && isNotesOpen;
+
+              return (
+                <button
+                  key={idx}
+                  onClick={btn.onClick}
+                  className={`flex items-center justify-center ${
+                    isLast ? "h-8 px-3 w-auto" : "w-8 h-8"
+                  } ${activeNotes ? "bg-blue-100" : "bg-gray-50"} hover:bg-gray-200 rounded-[7px] transition-colors`}
+                  title={btn.title}
+                >
+                  {btn.kind === "icon" ? (
+                    <btn.Icon className="w-4 h-4 text-gray-700" strokeWidth={2.4} />
+                  ) : btn.kind === "img" ? (
+                    <img src={btn.src} alt={btn.title} className="w-5 h-5" />
+                  ) : (
+                    <span className="text-sm font-medium text-gray-700">{btn.label}</span>
+                  )}
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>
 
-      <div
-        ref={scrollContainerRef}
-        className="flex-1 p-5 bg-muted overflow-auto custom-scroll"
-      >
+      {/* Scroll area */}
+      <div ref={scrollContainerRef} className="flex-1 p-5 bg-muted overflow-auto custom-scroll">
+        {isNotesOpen && (
+          <div className="mb-4 border rounded-lg bg-white shadow-sm">
+            <div className="px-3 py-2  flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium">Notes for INV #{invoice?.id ?? "—"}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                {/* 🆕 Cancel button to remove notes */}
+                <button
+                  onClick={handleCancelNote}
+                  className="inline-flex items-center gap-2 text-sm px-3 py-1.5 rounded-md border border-red-300 text-red-700 bg-red-50 hover:bg-red-100"
+                  title="Clear Note"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    saveNote();
+                  }}
+                  className="inline-flex items-center gap-2 text-sm px-3 py-1.5 rounded-md bg-blue-600 text-white hover:opacity-90"
+                  title="Save Note"
+                >
+                  Save
+                </button>
+              </div>
+            </div>
+            <div className="px-3 py-2">
+              <textarea
+                value={noteText}
+                onChange={handleNoteChange}
+                placeholder="Add a note"
+                className="w-full min-h-[110px] max-h-[320px] resize-y rounded-md border px-3 py-2 outline-none focus:ring-2 focus:ring-gray-300"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* PDF container */}
         <div ref={pdfContainerRef} className="flex flex-col items-center" />
       </div>
 
+      {/* Pageless toggle button */}
       <button
-        onClick={togglePageless}
+        onClick={() => setIsPageless((v) => !v)}
         className="absolute bottom-6 right-6 bg-white rounded-xl shadow-md border border-gray-200 p-3 hover:shadow-lg transition-all"
         title={isPageless ? "Switch to Page View" : "Switch to Pageless View"}
       >
-        <img src={FileIcon} className="h-5 w-5 object-contain" alt="fileicon" />
+        <img src={FileIcon} className="h-5 w-5 text-muted-foreground" alt="fileicon" />
       </button>
     </div>
   );

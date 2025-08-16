@@ -10,6 +10,7 @@ import NotFound from "./pages/NotFound.jsx";
 import OnboardingLayout from "./components/OnboardingLayout/Onboardinglayout";
 
 import ContactsPage from "./pages/ContactsPage.jsx";
+import Settings from "./pages/Settings.jsx";
 
 const queryClient = new QueryClient();
 
@@ -46,8 +47,14 @@ const App = () => (
               </DefaultLayout>
             }
           />
-
-          <Route path="*" element={<NotFound />} />
+          <Route
+              path="/settings"
+              element={
+                <DefaultLayout>
+                  <Settings />
+                </DefaultLayout>
+              }
+            />
         </Routes>
       </BrowserRouter>
     </TooltipProvider>

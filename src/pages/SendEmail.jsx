@@ -63,7 +63,6 @@ const SendEmail = ({ isOpen, onClose, contactEmail }) => {
            flex flex-col overflow-hidden"
 
           >
-            {/* Title bar */}
             <div className="flex items-center justify-between px-4 sm:px-6 py-4">
               <h2 className="text-xl sm:text-2xl font-semibold text-gray-900">
                 Write Email
@@ -78,9 +77,9 @@ const SendEmail = ({ isOpen, onClose, contactEmail }) => {
             </div>
             <div className="border" />
  
-            {/* Form */}
+      
             <div className="flex-1 overflow-auto">
-              {/* To */}
+         
               <div className="flex flex-wrap items-center px-4 sm:px-6 py-3">
                 <div className="w-20 text-sm text-gray-600">To</div>
                 <input
@@ -93,7 +92,7 @@ const SendEmail = ({ isOpen, onClose, contactEmail }) => {
               </div>
               <div className="border" />
  
-              {/* Subject */}
+         
               <div className="flex flex-wrap items-center px-4 sm:px-6 py-3">
                 <div className="w-20 text-sm text-gray-600">Subject</div>
                 <input
@@ -106,7 +105,6 @@ const SendEmail = ({ isOpen, onClose, contactEmail }) => {
               </div>
               <div className="border" />
  
-              {/* Toolbar */}
               <div className="px-4 sm:px-6 py-3">
                 <div className="flex flex-wrap items-center gap-2">
                   {[
@@ -221,7 +219,7 @@ const SendEmail = ({ isOpen, onClose, contactEmail }) => {
         </>
       )}
  
-      {/* SUCCESS TOAST */}
+      {/* TOAST */}
       {showToast && (
         <div
           className="fixed bottom-6 right-6 z-[60] w-[95vw] max-w-sm
