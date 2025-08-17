@@ -10,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select.jsx";
-import {XeroDestination} from "./XeroDestination";
+import { XeroDestination } from "./XeroDestination";
 import { TAX_RATES, ACCOUNT_CODES, invoices as invoiceRows } from "./InvoiceData.jsx"; // <-- bring invoices here
 
 export const Summary = ({ invoice }) => {
@@ -22,7 +22,7 @@ export const Summary = ({ invoice }) => {
 
   const formatDate = (date) => date.toISOString().split("T")[0];
 
-  const defaultDate = new Date(2025, 5, 20); 
+  const defaultDate = new Date(2025, 5, 20);
   const defaultDueDate = new Date(defaultDate);
   defaultDueDate.setDate(defaultDueDate.getDate() + 7);
 
@@ -161,10 +161,25 @@ export const Summary = ({ invoice }) => {
     setNewSupplierOpen(false);
   };
 
+  // 🔧 UPDATED: Send a rich payload to XeroDestination and open Multiple items
   const handleGenerateLineItems = () => {
-    window.dispatchEvent(
-      new CustomEvent("open-multiple-line-items", { detail: autoTwoLines })
-    );
+    const payload = {
+      source: "summary-extracted-amount",
+      taxAmount: Number(autoTwoLines.taxAmount) || 0,
+      taxablePortion: autoTwoLines.taxablePortion || "",
+      untaxedPortion: autoTwoLines.untaxedPortion || "",
+      account: autoTwoLines.account || "",
+      currency: formData.currency || "AUD",
+      invoiceNumber: formData.invoiceNumber || "",
+    };
+
+    window.dispatchEvent(new CustomEvent("prefill-xero-line-items", { detail: payload }));
+  };
+
+  // 👇 new handler for manual mode
+  const handleEnterManually = () => {
+    const payload = { mode: "manual" };
+    window.dispatchEvent(new CustomEvent("open-multiple-line-items", { detail: payload }));
   };
 
   return (
@@ -466,12 +481,12 @@ export const Summary = ({ invoice }) => {
               Generate Line Items
             </button>
             <button
-              type="button"
-              onClick={handleGenerateLineItems}
-              className="text-sky-700 hover:underline text-sm"
-            >
-              Or enter manually
-            </button>
+                type="button"
+                onClick={handleEnterManually}
+                className="text-sky-700 hover:underline text-sm"
+              >
+                Or enter manually
+              </button>
           </div>
         </div>
       )}

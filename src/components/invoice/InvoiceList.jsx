@@ -1,9 +1,9 @@
-import { useState } from "react";
-import { Search, AlertTriangle } from "lucide-react";
+import { useState, useMemo } from "react";
+import { Search, AlertTriangle, Copy } from "lucide-react"; // ⬅️ Added Copy
 import { Input } from "@/components/ui/input.jsx";
 import { Badge } from "@/components/ui/badge.jsx";
-import ConstructionCrane from "../assets/construction-crane.svg"
-import ScrollText from "../assets/scroll-text.svg"
+import ConstructionCrane from "../assets/construction-crane.svg";
+import ScrollText from "../assets/scroll-text.svg";
 
 const getStatusClass = (status) => {
   switch (status) {
@@ -30,14 +30,12 @@ export const InvoiceList = ({
 }) => {
   const [searchTerm, setSearchTerm] = useState("");
 
-
   const tabFilteredInvoices = invoices.filter((invoice) => {
     const status = (invoice.status || "").toLowerCase().trim();
 
     if (!activeTab || activeTab === "All") return true;
 
     if (activeTab === "Review") {
-
       return (
         status === "manual review" ||
         status.includes("manual review") ||
@@ -46,14 +44,12 @@ export const InvoiceList = ({
     }
 
     if (activeTab === "Approved") {
-
       return status.includes("approved");
     }
 
     if (activeTab === "Archived") {
       return status.includes("archived");
     }
-
 
     return true;
   });
@@ -68,6 +64,17 @@ export const InvoiceList = ({
       invoice.date?.toLowerCase().includes(term)
     );
   });
+
+  // ✅ Count duplicates
+  const duplicateCompanies = useMemo(() => {
+    const counts = {};
+    filteredInvoices.forEach((inv) => {
+      const name = inv.company?.toLowerCase().trim();
+      if (!name) return;
+      counts[name] = (counts[name] || 0) + 1;
+    });
+    return counts;
+  }, [filteredInvoices]);
 
   return (
     <div className="flex flex-col h-full bg-white">
@@ -89,50 +96,69 @@ export const InvoiceList = ({
             No results found.
           </div>
         ) : (
-          filteredInvoices.map((invoice) => (
-            <div
-              key={invoice.id}
-              onClick={() => onSelectInvoice(invoice)}
-              className={`flex flex-col cursor-pointer transition-colors ${selectedInvoiceId === invoice.id
-                  ? "border-l-4 border-blue-600 bg-gray-100 pl-3 pr-4 py-3 "
-                  : "pl-4 pr-4 py-3 border border-border hover:bg-muted/50"
+          filteredInvoices.map((invoice) => {
+            const isDuplicate =
+              duplicateCompanies[invoice.company?.toLowerCase().trim()] > 1;
+
+            return (
+              <div
+                key={invoice.id}
+                onClick={() => onSelectInvoice(invoice)}
+                className={`flex flex-col cursor-pointer transition-colors ${
+                  selectedInvoiceId === invoice.id
+                    ? "border-l-4 border-blue-600 bg-gray-100 pl-3 pr-4 py-3 "
+                    : "pl-4 pr-4 py-3 border border-border hover:bg-muted/50"
                 }`}
-            >
-              <div className="flex items-start justify-between mb-1">
-                <div className="flex items-center gap-1">
-                  <Badge
-                    variant="secondary"
-                    className={`text-xs px-2 py-1 ${getStatusClass(invoice.status)}`}
-                  >
-                    {invoice.status}
-                  </Badge>
-                  {invoice.warning && (
-                    <AlertTriangle className="text-yellow-600 w-4 h-4 ml-1" />
-                  )}
+              >
+                <div className="flex items-start justify-between mb-1">
+                  <div className="flex items-center gap-1">
+                    <Badge
+                      variant="secondary"
+                      className={`text-xs px-2 py-1 ${getStatusClass(
+                        invoice.status
+                      )}`}
+                    >
+                      {invoice.status}
+                    </Badge>
+                    {invoice.warning && (
+                      <AlertTriangle className="text-yellow-600 w-4 h-4 ml-1" />
+                    )}
+                  </div>
+                  <span className="text-xs text-muted-foreground">
+                    {invoice.date}
+                  </span>
                 </div>
-                <span className="text-xs text-muted-foreground">{invoice.date}</span>
+
+                <h3 className="font-medium text-sm text-foreground mb-1 flex items-center gap-1">
+                  {invoice.company}
+                  {isDuplicate && (
+                    <Copy className="text-gray-400 w-4 h-4 ml-10" /> // ⬅️ Duplicate Icon
+                  )}
+                </h3>
+
+                <div className="flex items-center text-xs  text-gray-500 space-x-4">
+                  <span className="flex items-center">
+                    <img
+                      src={ScrollText}
+                      alt="ScrollText"
+                      className="w-4 h-4 mr-1"
+                    />
+                    {invoice.poNumber}
+                  </span>
+                  <span className="flex items-center">
+                    <img
+                      src={ConstructionCrane}
+                      alt="ConstructionCrane"
+                      className="w-4 h-4 mr-1"
+                    />
+                    {invoice.jobNumber}
+                  </span>
+                </div>
               </div>
-
-              <h3 className="font-medium text-sm text-foreground mb-1">
-                {invoice.company}
-              </h3>
-
-              <div className="flex items-center text-xs  text-gray-500 space-x-4">
-                <span className="flex items-center">
-                  <img src={ScrollText} alt="ScrollText" className="w-4 h-4 mr-1" />
-                  {invoice.poNumber}
-                </span>
-                <span className="flex items-center">
-                  <img src={ConstructionCrane} alt="ConstructionCrane" className="w-4 h-4 mr-1" />
-                  {invoice.jobNumber}
-                </span>
-              </div>
-
-            </div>
-          ))
+            );
+          })
         )}
       </div>
-
     </div>
   );
 };

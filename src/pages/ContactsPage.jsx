@@ -153,8 +153,16 @@ export default function ContactsPage() {
   const [sortByNameAsc, setSortByNameAsc] = useState(true);
   const [isEmailModalOpen, setEmailModalOpen] = useState(false);
 
-  const [isEditing, setIsEditing] = useState(false);
-  const [editableContact, setEditableContact] = useState(null);
+  // 🔧 NEW: Edit modal state
+  const [isEditModalOpen, setEditModalOpen] = useState(false);
+  const [editForm, setEditForm] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+    joined: "",
+    location: "",
+  });
 
   const [newNote, setNewNote] = useState("");
   const [isCreatingNote, setIsCreatingNote] = useState(false);
@@ -207,14 +215,64 @@ export default function ContactsPage() {
     setContactList((prev) => prev.filter((c) => c.id !== selectedContact.id));
   };
 
-  const handleSaveEdits = () => {
-    if (!editableContact) return;
+  // 🔧 NEW: open Edit modal, prefill with selected contact
+  const openEditModal = () => {
+    if (!selectedContact) return;
+    const parts = (selectedContact.name || "").trim().split(/\s+/);
+    const firstName = parts[0] || "";
+    const lastName = parts.slice(1).join(" ");
+    setEditForm({
+      firstName,
+      lastName,
+      email: selectedContact.email || "",
+      phone: selectedContact.phone || "",
+      joined: selectedContact.joined || "",
+      location: selectedContact.location || "",
+    });
+    setEditModalOpen(true);
+  };
+
+  const closeEditModal = () => setEditModalOpen(false);
+
+  // 🔧 NEW: save edits from modal
+  const saveEditModal = () => {
+    const first = (editForm.firstName || "").trim();
+    const last = (editForm.lastName || "").trim();
+    const fullName = `${first} ${last}`.trim();
+    const initials = computeInitials(first, last, fullName || selectedContact?.name || "NC");
+
     setContactList((prev) =>
-      prev.map((c) => (c.id === editableContact.id ? { ...editableContact } : c))
+      prev.map((c) =>
+        c.id === selectedContact.id
+          ? {
+              ...c,
+              name: fullName || c.name,
+              email: (editForm.email || "").trim(),
+              phone: (editForm.phone || "").trim(),
+              joined: (editForm.joined || "").trim(),
+              location: (editForm.location || "").trim(),
+              initials,
+            }
+          : c
+      )
     );
-    setSelectedContact({ ...editableContact });
-    setIsEditing(false);
-    setEditableContact(null);
+
+    // update the right pane immediately
+    setSelectedContact((prev) =>
+      prev
+        ? {
+            ...prev,
+            name: fullName || prev.name,
+            email: (editForm.email || "").trim(),
+            phone: (editForm.phone || "").trim(),
+            joined: (editForm.joined || "").trim(),
+            location: (editForm.location || "").trim(),
+            initials,
+          }
+        : prev
+    );
+
+    closeEditModal();
   };
 
   const handleAddNote = () => {
@@ -311,7 +369,7 @@ export default function ContactsPage() {
                   onClick={() => {
                     const first = (newContactData.firstName || "").trim();
                     const last = (newContactData.lastName || "").trim();
-                    const fullName = `${first} ${last}`.trim(); // ✅ fixed template-string bug
+                    const fullName = `${first} ${last}`.trim();
 
                     const initials = computeInitials(
                       first,
@@ -343,8 +401,6 @@ export default function ContactsPage() {
                       location: "",
                     });
                     setSelectedContact(newContact);
-                    setIsEditing(false);
-                    setEditableContact(null);
                   }}
                   className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm rounded-lg"
                 >
@@ -406,8 +462,6 @@ export default function ContactsPage() {
                 key={c.id}
                 onClick={() => {
                   setSelectedContact(c);
-                  setIsEditing(false);
-                  setEditableContact(null);
                   setIsCreatingNote(false);
                 }}
                 className={`flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-gray-50 ${
@@ -445,20 +499,7 @@ export default function ContactsPage() {
                     {selectedContact.initials}
                   </div>
                   <div>
-                    {isEditing ? (
-                      <input
-                        className="border-b border-gray-300 bg-transparent outline-none text-sm text-gray-800 w-full max-w-md"
-                        value={editableContact?.name ?? ""}
-                        onChange={(e) =>
-                          setEditableContact({
-                            ...editableContact,
-                            name: e.target.value,
-                          })
-                        }
-                      />
-                    ) : (
-                      <div className="text-xl font-semibold">{selectedContact.name}</div>
-                    )}
+                    <div className="text-xl font-semibold">{selectedContact.name}</div>
                     <div className="text-sm text-gray-600 mt-1 flex items-center gap-1">
                       <img src={Office} alt="office" className="w-4 h-4 text-gray-500" />
                       <span className="text-gray-900">{selectedContact.company}</span>
@@ -475,17 +516,10 @@ export default function ContactsPage() {
                     Send Email
                   </button>
                   <button
-                    onClick={() => {
-                      if (isEditing) {
-                        handleSaveEdits();
-                      } else {
-                        setEditableContact({ ...selectedContact });
-                        setIsEditing(true);
-                      }
-                    }}
+                    onClick={openEditModal}
                     className="px-3 py-1 border rounded-lg text-sm"
                   >
-                    {isEditing ? "Save" : "Edit"}
+                    Edit
                   </button>
                   <button className="px-3 py-1 border rounded-lg text-sm">Share</button>
                   <button
@@ -511,23 +545,9 @@ export default function ContactsPage() {
                       <img src={Location} alt="location" className="w-4 h-4 mr-2 mt-1" />
                     )}
 
-                    {/* underline spans full width in both modes */}
-                    {isEditing ? (
-                      <input
-                        className="flex-1 min-w-0 border-b border-gray-300 bg-transparent outline-none text-sm text-gray-800 pb-0.5"
-                        value={editableContact?.[field] ?? ""}
-                        onChange={(e) =>
-                          setEditableContact({
-                            ...editableContact,
-                            [field]: e.target.value,
-                          })
-                        }
-                      />
-                    ) : (
-                      <div className="flex-1 min-w-0 border-b border-gray-300 font-medium text-sm text-gray-800 pb-0.5 truncate">
-                        {selectedContact[field]}
-                      </div>
-                    )}
+                    <div className="flex-1 min-w-0 font-medium text-sm text-gray-800 truncate">
+                      {selectedContact[field]}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -616,11 +636,102 @@ export default function ContactsPage() {
         </div>
       </div>
 
+      {/* ✉️ Email Modal (unchanged) */}
       <SendEmail
         isOpen={isEmailModalOpen}
         onClose={() => setEmailModalOpen(false)}
         contactEmail={selectedContact?.email || ""}
       />
+
+      {/* 🛠 Edit Contact Modal */}
+      {isEditModalOpen && (
+        <>
+          <div
+            className="fixed inset-0 bg-black bg-opacity-40 z-40"
+            onClick={closeEditModal}
+          />
+          <div className="fixed inset-0 flex items-center justify-center z-50">
+            <div
+              className="bg-white rounded-lg shadow-lg p-6 w-full max-w-md mx-4"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h2 className="text-lg font-semibold mb-4">Edit Contact</h2>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <input
+                  type="text"
+                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-full"
+                  placeholder="First name"
+                  value={editForm.firstName}
+                  onChange={(e) =>
+                    setEditForm((p) => ({ ...p, firstName: e.target.value }))
+                  }
+                />
+                <input
+                  type="text"
+                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-full"
+                  placeholder="Last name"
+                  value={editForm.lastName}
+                  onChange={(e) =>
+                    setEditForm((p) => ({ ...p, lastName: e.target.value }))
+                  }
+                />
+                <input
+                  type="email"
+                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-full col-span-1 md:col-span-2"
+                  placeholder="Email"
+                  value={editForm.email}
+                  onChange={(e) =>
+                    setEditForm((p) => ({ ...p, email: e.target.value }))
+                  }
+                />
+                <input
+                  type="text"
+                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-full"
+                  placeholder="Phone"
+                  value={editForm.phone}
+                  onChange={(e) =>
+                    setEditForm((p) => ({ ...p, phone: e.target.value }))
+                  }
+                />
+                <input
+                  type="text"
+                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-full"
+                  placeholder="Joined"
+                  value={editForm.joined}
+                  onChange={(e) =>
+                    setEditForm((p) => ({ ...p, joined: e.target.value }))
+                  }
+                />
+                <input
+                  type="text"
+                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-full col-span-1 md:col-span-2"
+                  placeholder="Location"
+                  value={editForm.location}
+                  onChange={(e) =>
+                    setEditForm((p) => ({ ...p, location: e.target.value }))
+                  }
+                />
+              </div>
+
+              <div className="mt-4 flex justify-end gap-2">
+                <button
+                  onClick={closeEditModal}
+                  className="px-4 py-2 rounded-lg border border-gray-300 text-sm hover:bg-gray-100"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={saveEditModal}
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm rounded-lg"
+                >
+                  Save
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

@@ -4,41 +4,35 @@ import {
   CheckCircle2,
   Pencil,
   ChevronDown,
+  Settings2,
+  Mail,
+  Building2,
+  CalendarDays,
+  ShieldCheck,
 } from "lucide-react";
 
 export default function Settings() {
- 
+  // ── original state (kept) ─────────────────────────
   const [orgName, setOrgName] = useState("");
-  const [orgEmail] = useState(""); 
+  const [orgEmail] = useState("");
   const [currency, setCurrency] = useState("AUD");
   const [dateFormat, setDateFormat] = useState("DD-MM-YYYY");
 
-  const [uploadEmail, setUploadEmail] = useState(
-    "example.com"
-  );
+  const [uploadEmail, setUploadEmail] = useState("example.com");
   const [canEditUploadEmail, setCanEditUploadEmail] = useState(false);
-  const [copyOk, setCopyOk] = useState(false);
-
+  const [copied, setCopied] = useState(false);
   const [createFromBody, setCreateFromBody] = useState(false);
-  const [extractData, setExtractData] = useState(true);
-  const [autoTax, setAutoTax] = useState(true);
 
-
+  // ── original actions (kept) ───────────────────────
   const copyUploadEmail = async () => {
     try {
       await navigator.clipboard.writeText(uploadEmail);
-      setCopyOk(true);
-      setTimeout(() => setCopyOk(false), 1400);
-    } catch {
-
-    }
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1200);
+    } catch {}
   };
 
-  const onCancel = () => {
- 
-    window.history.back?.();
-  };
-
+  const onCancel = () => window.history.back?.();
   const onSave = () => {
     const payload = {
       orgName,
@@ -47,194 +41,76 @@ export default function Settings() {
       dateFormat,
       uploadEmail,
       createFromBody,
-      extractData,
-      autoTax,
     };
     console.log("Save settings:", payload);
-
   };
 
-  return (
-    <div className="w-full min-h-screen bg-gray-200">
-      {/* Top nav tabs */}
-      <div className="bg-blue-600 text-white">
-        <div className="max-w-6xl mx-auto px-4 h-30 ">
-          <div className="flex gap-6 ">
-            <Tab text="Suppliers" />
-            <Tab className="text-2xl md:text-2xl" text="Settings" active />
-            <Tab text="Integrations" />
-          </div>
-        </div>
+  // helpers
+  const inputBase =
+    "rounded-lg border border-slate-200 text-[14px] text-slate-800 px-3 py-2 placeholder:text-slate-400 " +
+    "focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-300 hover:border-slate-300 transition-all";
+
+  const SectionTitle = ({ icon, title, subtitle }) => (
+    <div className="flex items-start gap-3">
+      <div className="h-8 w-8 grid place-items-center rounded-lg bg-indigo-50 text-indigo-600">
+        {icon}
       </div>
-
-      {/* Page body */}
-      <div className="max-w-6xl mx-auto px-4 py-6">
-        <h1 className="text-[22px] font-semibold text-gray-800 mb-4">
-        Settings
-        </h1>
-
-        {/* General */}
-        <Card>
-          <CardTitle>General</CardTitle>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <LabeledInput
-              label="Organization Name"
-              value={orgName}
-              onChange={(e) => setOrgName(e.target.value)}
-              placeholder="Organization Name"
-            />
-            <LabeledInput
-              label="Organization Email"
-              value={orgEmail}
-              placeholder="Organization Email"
-            />
-
-            <LabeledSelect
-              label="Base Currency"
-              value={currency}
-              onChange={(e) => setCurrency(e.target.value)}
-              options={["AUD", "USD", "NZD", "EUR", "GBP", "INR"]}
-            />
-
-            <LabeledSelect
-              label="Date Format"
-              value={dateFormat}
-              onChange={(e) => setDateFormat(e.target.value)}
-              options={["DD-MM-YYYY", "MM-DD-YYYY", "YYYY-MM-DD"]}
-            />
-          </div>
-        </Card>
-
-        {/* Uploading files via email */}
-        <Card>
-          <CardTitle>Uploading files via email</CardTitle>
-          <p className="text-sm text-gray-600 mb-3">
-            You can send emails with attached documents to the following
-            address. The documents will be automatically uploaded to your
-            account.
-          </p>
-
-          <div className="flex flex-col md:flex-row md:items-center gap-3 mb-2">
-            <input
-              className={`w-full md:flex-1 rounded-md border px-3 py-2 text-sm ${
-                canEditUploadEmail ? "bg-white" : "bg-gray-100"
-              }`}
-              value={uploadEmail}
-              onChange={(e) => setUploadEmail(e.target.value)}
-              disabled={!canEditUploadEmail}
-            />
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setCanEditUploadEmail((v) => !v)}
-                className="text-sm inline-flex items-center gap-1 text-blue-700 hover:underline"
-              >
-                <Pencil className="w-4 h-4" />
-                Edit email
-              </button>
-              <span className="text-gray-300">|</span>
-              <button
-                onClick={copyUploadEmail}
-                className="text-sm inline-flex items-center gap-1 text-blue-700 hover:underline"
-              >
-                <ClipboardCopy className="w-4 h-4" />
-                {copyOk ? "Copied" : "Copy to Clipboard"}
-              </button>
-            </div>
-          </div>
-
-          <label className="mt-3 flex items-start gap-2 text-sm text-gray-700">
-            <input
-              type="checkbox"
-              className="mt-1 h-4 w-4"
-              checked={createFromBody}
-              onChange={(e) => setCreateFromBody(e.target.checked)}
-            />
-            <span>
-              Create documents from both the attachment(s) and the body of the
-              email.{" "}
-              <a className="text-blue-700 hover:underline" href="#">
-                Learn More.
-              </a>
-            </span>
-          </label>
-        </Card>
-
-
-        
-
-        {/* Footer buttons */}
-        <div className="flex items-center justify-end gap-3 mt-4">
-          <button
-            onClick={onCancel}
-            className="px-4 py-2 rounded-md border text-gray-700 bg-white hover:bg-gray-50"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={onSave}
-            className="px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 inline-flex items-center gap-2"
-          >
-            <CheckCircle2 className="w-4 h-4" />
-            Save changes
-          </button>
-        </div>
+      <div>
+        <h2 className="text-[15px] font-semibold text-slate-900">{title}</h2>
+        {subtitle && <p className="text-[12.5px] text-slate-500">{subtitle}</p>}
       </div>
     </div>
   );
-}
 
-
-
-function Tab({ text, active }) {
-  return (
-    <button
-      className={`relative px-4 py-3 text-sm font-medium transition-colors ${
-        active ? "text-white" : "text-white/70 hover:text-white"
-      }`}
+  const Card = ({ children, className = "" }) => (
+    <section
+      className={
+        "rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition-all duration-300 hover:shadow-md " +
+        className
+      }
     >
-      {text}
-      {active && (
-        <span className="absolute inset-x-0 -bottom-[1px] h-0.5 bg-emerald-400" />
-      )}
+      {children}
+    </section>
+  );
+
+  const GhostButton = ({ children, icon, className = "", ...props }) => (
+    <button
+      {...props}
+      className={
+        "inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-slate-700 hover:bg-slate-50 transition-colors " +
+        className
+      }
+    >
+    {icon}
+    {children}
     </button>
   );
-}
 
-function Card({ children }) {
-  return (
-    <div className="bg-white rounded-md border border-gray-200 shadow-sm p-5 mb-5">
-      {children}
-    </div>
-  );
-}
-
-function CardTitle({ children }) {
-  return (
-    <h2 className="text-[15px] font-semibold text-gray-800 mb-3">{children}</h2>
-  );
-}
-
-function LabeledInput({ label, ...props }) {
-  return (
+  const LabeledInput = ({ label, icon, ...props }) => (
     <label className="block">
-      <div className="text-sm text-gray-700 mb-1">{label}</div>
-      <input
-        className="w-full rounded-md border bg-white px-3 py-2 text-sm disabled:bg-gray-100"
-        {...props}
-      />
+      <div className="mb-1 flex items-center gap-2 text-[12.5px] font-medium text-slate-600">
+        <span className="inline-flex h-5 w-5 items-center justify-center rounded-md bg-indigo-50 text-indigo-600">
+          {icon}
+        </span>
+        {label}
+      </div>
+      <input className={`w-full bg-white ${inputBase}`} {...props} />
     </label>
   );
-}
 
-function LabeledSelect({ label, value, onChange, options }) {
-  return (
+  const LabeledSelect = ({ label, value, onChange, options, icon }) => (
     <label className="block">
-      <div className="text-sm text-gray-700 mb-1">{label}</div>
+      <div className="mb-1 flex items-center gap-2 text-[12.5px] font-medium text-slate-600">
+        <span className="inline-flex h-5 w-5 items-center justify-center rounded-md bg-indigo-50 text-indigo-600">
+          {icon}
+        </span>
+        {label}
+      </div>
       <div className="relative">
         <select
           value={value}
           onChange={onChange}
-          className="w-full appearance-none rounded-md border bg-white px-3 py-2 text-sm pr-8"
+          className={`w-full appearance-none bg-white pr-9 ${inputBase} h-[40px]`}
         >
           {options.map((opt) => (
             <option key={opt} value={opt}>
@@ -242,22 +118,210 @@ function LabeledSelect({ label, value, onChange, options }) {
             </option>
           ))}
         </select>
-        <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+        <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
       </div>
     </label>
   );
-}
 
-function CheckboxRow({ label, checked, onChange }) {
-  return (
-    <label className="flex items-start gap-2 text-sm text-gray-800">
+  const CheckboxRow = ({ label, checked, onChange }) => (
+    <label className="flex items-start gap-2 text-[13px] text-slate-800">
       <input
         type="checkbox"
-        className="mt-1 h-4 w-4"
+        className="mt-0.5 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-0 focus:outline-none"
         checked={checked}
         onChange={(e) => onChange(e.target.checked)}
       />
       <span>{label}</span>
     </label>
+  );
+
+  const MiniNavItem = ({ text, icon, active }) => (
+    <button
+      type="button"
+      className={`w-full text-left flex items-center gap-2 px-3 py-2 rounded-lg text-[13px] mb-1 transition-colors
+        ${active ? "bg-indigo-50 text-indigo-700" : "text-slate-700 hover:bg-slate-100"}`}
+    >
+      <span className="h-5 w-5 grid place-items-center rounded-md bg-slate-100 text-slate-600">
+        {icon}
+      </span>
+      {text}
+    </button>
+  );
+
+  return (
+    <div className="min-h-screen w-full bg-[#F6F7FB]">
+      {/* Header */}
+      <header className="sticky top-0 z-30 border-b border-slate-200/70 bg-white/90 backdrop-blur">
+        <div className="max-w-6xl mx-auto px-5 py-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 grid place-items-center rounded-xl bg-indigo-50 text-indigo-600 shadow-sm">
+                <Settings2 className="h-5 w-5" />
+              </div>
+              <div>
+                <h1 className="text-[22px] md:text-[24px] font-semibold text-slate-900">Settings</h1>
+                <p className="text-[12.5px] text-slate-500">
+                  Configure organization, regional formats, and email uploads
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Content */}
+      <main className="max-w-6xl mx-auto px-5 py-6">
+        <div className="grid grid-cols-12 gap-6">
+          {/* Left mini-nav (only the remaining sections) */}
+          <aside className="col-span-12 md:col-span-3">
+            <Card className="p-3">
+              <MiniNavItem text="Organization" icon={<Building2 className="w-4 h-4" />} active />
+              <MiniNavItem text="Regional" icon={<ShieldCheck className="w-4 h-4" />} />
+              <MiniNavItem text="Upload via Email" icon={<Mail className="w-4 h-4" />} />
+            </Card>
+          </aside>
+
+          {/* Right column */}
+          <section className="col-span-12 md:col-span-9 grid gap-6">
+            {/* Organization */}
+            <Card>
+              <SectionTitle
+                icon={<Building2 className="h-4 w-4" />}
+                title="Organization"
+                subtitle="Core details used across invoices and emails."
+              />
+              <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <LabeledInput
+                  label="Organization Name"
+                  icon={<Building2 className="h-4 w-4" />}
+                  value={orgName}
+                  onChange={(e) => setOrgName(e.target.value)}
+                  placeholder="Enter your organization name"
+                />
+                <LabeledInput
+                  label="Organization Email"
+                  icon={<Mail className="h-4 w-4" />}
+                  value={orgEmail}
+                  placeholder="Email (read-only)"
+                  disabled
+                />
+              </div>
+            </Card>
+
+            {/* Regional */}
+            <Card>
+              <SectionTitle
+                icon={<ShieldCheck className="h-4 w-4" />}
+                title="Regional"
+                subtitle="Formatting preferences for currency and dates."
+              />
+              <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <LabeledSelect
+                  label="Base Currency"
+                  icon={<ShieldCheck className="h-4 w-4" />}
+                  value={currency}
+                  onChange={(e) => setCurrency(e.target.value)}
+                  options={["AUD", "USD", "NZD", "EUR", "GBP", "INR"]}
+                />
+                <LabeledSelect
+                  label="Date Format"
+                  icon={<CalendarDays className="h-4 w-4" />}
+                  value={dateFormat}
+                  onChange={(e) => setDateFormat(e.target.value)}
+                  options={["DD-MM-YYYY", "MM-DD-YYYY", "YYYY-MM-DD"]}
+                />
+              </div>
+            </Card>
+
+            {/* Upload via email */}
+            <Card>
+              <SectionTitle
+                icon={<Mail className="h-4 w-4" />}
+                title="Upload via Email"
+                subtitle="Send emails with attachments to this address to auto-upload."
+              />
+              <div className="mt-3 flex flex-col md:flex-row md:items-center gap-2.5">
+                <div className="relative w-full md:flex-1">
+                  <div className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                    <Mail className="h-4 w-4" />
+                  </div>
+                  <input
+                    className={`w-full ${inputBase} pl-9 pr-10 ${
+                      canEditUploadEmail ? "bg-white" : "bg-slate-50"
+                    }`}
+                    value={uploadEmail}
+                    onChange={(e) => setUploadEmail(e.target.value)}
+                    disabled={!canEditUploadEmail}
+                  />
+                  <span
+                    className={`absolute right-3 top-1/2 -translate-y-1/2 h-2.5 w-2.5 rounded-full transition-colors ${
+                      canEditUploadEmail ? "bg-amber-400" : "bg-emerald-400"
+                    }`}
+                  />
+                </div>
+
+                <div className="flex items-center gap-2 text-[13px]">
+                  <GhostButton
+                    onClick={() => setCanEditUploadEmail((v) => !v)}
+                    icon={<Pencil className="w-4 h-4" />}
+                  >
+                    {canEditUploadEmail ? "Lock" : "Edit"}
+                  </GhostButton>
+                  <GhostButton onClick={copyUploadEmail} icon={<ClipboardCopy className="w-4 h-4" />}>
+                    {copied ? "Copied" : "Copy"}
+                  </GhostButton>
+                </div>
+              </div>
+
+              <div className="mt-3">
+                <CheckboxRow
+                  label={
+                    <>
+                      Create documents from both attachments and the email body.{" "}
+                      <a href="#" className="text-indigo-600 hover:text-indigo-700">
+                        Learn more
+                      </a>
+                    </>
+                  }
+                  checked={createFromBody}
+                  onChange={setCreateFromBody}
+                />
+              </div>
+            </Card>
+          </section>
+        </div>
+      </main>
+
+      {/* Sticky Action Bar */}
+      <div className="sticky bottom-0 z-20 bg-white/95 backdrop-blur border-t border-slate-200 shadow-[0_-1px_3px_rgba(0,0,0,0.06)]">
+        <div className="max-w-6xl mx-auto px-5 py-3 flex items-center justify-end gap-3">
+          <button
+            onClick={onCancel}
+            className="px-4 h-9 rounded-md border border-slate-300 bg-white text-slate-700 text-sm font-medium hover:bg-slate-50 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onSave}
+            className="inline-flex items-center gap-2 px-4 h-9 rounded-md text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 shadow-sm transition-all"
+          >
+            <CheckCircle2 className="w-4 h-4" />
+            Save Changes
+          </button>
+        </div>
+      </div>
+
+      {/* Copy toast */}
+      <div
+        className={`fixed bottom-5 left-1/2 -translate-x-1/2 z-50 transition-all duration-300 ${
+          copied ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"
+        }`}
+      >
+        <div className="rounded-lg bg-white px-3 py-2 shadow-lg ring-1 ring-black/5 text-sm text-slate-800 flex items-center gap-2">
+          <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+          Email address copied
+        </div>
+      </div>
+    </div>
   );
 }

@@ -1,4 +1,6 @@
-import { useState } from "react";
+// components/invoice/XeroDestination.jsx
+import { useState, useEffect, useRef } from "react";
+import { flushSync } from "react-dom";
 import { ChevronUp, ChevronDown, Mail } from "lucide-react";
 import {
   Select,
@@ -6,7 +8,6 @@ import {
   SelectContent,
   SelectItem,
   SelectValue,
-  SelectSeparator,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -15,36 +16,48 @@ import xero from "../assets/Images/companies_logo/Xero.svg";
 import Iicon from "../assets/I-icon.svg";
 import GreenIcon from "../assets/GreenIcon.svg";
 
-
 import { ACCOUNT_CODES, invoices as INVOICES } from "./InvoiceData";
 
+// Keep your filename spelling to match your repo
 import MultipleLineItems from "./MutipleLineItems";
 
 export const XeroDestination = () => {
   const [isOpen, setIsOpen] = useState(true);
   const [lineItemMode, setLineItemMode] = useState("single");
   const [jobId, setJobId] = useState("");
+  const [showEditor, setShowEditor] = useState(false);
 
-  const jobOptions = [
+  // ✅ stateful job options (as requested)
+  const [jobOptions, setJobOptions] = useState([
     { id: "101", label: "Job ID 101" },
     { id: "102", label: "Job ID 102" },
     { id: "103", label: "Job ID 103" },
-    { id: "103", label: "Job ID 104" },
-    { id: "103", label: "Job ID 103" },
-  ];
+    { id: "104", label: "Job ID 104" },
+  ]);
 
-  const toggleOpen = () => setIsOpen((prev) => !prev);
+  // New Job flow
+  const [showNewJob, setShowNewJob] = useState(false);
+  const [newJobText, setNewJobText] = useState("");
 
   const flatField =
-    "h-10 w-full text-[15px] rounded-lg border border-gray-300 bg-white " +
-    "outline-none focus:outline-none focus:ring-0 focus:ring-offset-0 " +
-    "focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 " +
-    "data-[state=open]:ring-0 data-[state=open]:ring-offset-0 " +
-    "shadow-none focus:shadow-none";
+  "h-10 w-full text-[15px] rounded-lg border border-gray-300 bg-white " +
+  "outline-none focus:outline-none focus:ring-0 focus:border-gray-300 " + // 👈 keep gray border, no blue ring
+  "focus-visible:outline-none focus-visible:ring-0 focus-visible:border-gray-300 " + // 👈 disable visible ring
+  "shadow-none focus:shadow-none";
 
+
+  // Line items state (for MultipleLineItems)
   const [lineItems, setLineItems] = useState([
     { name: "", description: "", quantity: 0, unitPrice: 0, accountCode: "", taxRate: "" },
   ]);
+
+  // ✅ re-mount key for MultipleLineItems
+  const [multiKey, setMultiKey] = useState(0);
+
+  // Description bound to textarea
+  const [description, setDescription] = useState(
+    "Your insurance policies are approaching renewal beginning in mid August. Please find attached all current schedules for your review. Could you please check each one and notify me if there are any changes or updates that need to be made at your earliest."
+  );
 
   const addLineItem = () => {
     setLineItems((prev) => [
@@ -73,10 +86,11 @@ export const XeroDestination = () => {
 
   const saveLineItems = () => {
     console.log("Saved data:", lineItems);
-    setLineItemMode("single");
+    // Keep Multiple mode visible; just close popup
+    setShowEditor(false);
   };
 
-
+  // Contacts pulled from invoices (unchanged behavior)
   const initialContacts = Array.from(
     new Set((INVOICES || []).map((inv) => (inv.company || "").trim()).filter(Boolean))
   ).sort();
@@ -100,6 +114,86 @@ export const XeroDestination = () => {
     setShowNewContact(false);
   };
 
+  const handleJobSelectChange = (value) => {
+    if (value === "new") {
+      setNewJobText("");
+      setShowNewJob(true);
+    } else {
+      setJobId(value);
+    }
+  };
+
+  const saveNewJobId = () => {
+    const txt = (newJobText || "").trim();
+    if (!txt) return;
+    setJobOptions((prev) => {
+      if (prev.some((j) => j.id.toLowerCase() === txt.toLowerCase())) return prev;
+      return [{ id: txt, label: txt }, ...prev];
+    });
+    setJobId(txt);
+    setShowNewJob(false);
+    setNewJobText("");
+  };
+
+  // 👉 Ref for scrolling to Line Items
+  const lineItemsRef = useRef(null);
+
+  // 🔊 Listen to Summary's payload and APPEND items into Multiple view + open editor
+useEffect(() => {
+  const handler = (evt) => {
+    const d = evt?.detail || {};
+    const { taxAmount = 0, taxablePortion = "", account = "" } = d;
+
+    const selectedJobId = jobId || "";
+    const itemDescription = description || "";
+
+    const newItem = {
+      name: "Auto from Summary",
+      description: itemDescription,
+      quantity: 1,
+      unitPrice: Number(taxAmount) || 0, // Amount
+      accountCode: account,               // Account
+      taxRate: taxablePortion,            // Tax rate
+      jobId: selectedJobId,               // Job ID from dropdown
+    };
+
+    // ✅ Keep panel open, switch to Multiple, open popup
+    flushSync(() => setIsOpen(true));
+    flushSync(() => setLineItemMode("multiple"));
+
+    // ✅ Append instead of replace; if the only row is a blank default, replace that one
+    flushSync(() =>
+      setLineItems((prev) => {
+        const isBlankDefault =
+          Array.isArray(prev) &&
+          prev.length === 1 &&
+          !prev[0]?.name &&
+          !prev[0]?.description &&
+          (Number(prev[0]?.quantity) || 0) === 0 &&
+          (Number(prev[0]?.unitPrice) || 0) === 0 &&
+          !prev[0]?.accountCode &&
+          !prev[0]?.taxRate;
+
+        return isBlankDefault ? [newItem] : [...(prev || []), newItem];
+      })
+    );
+
+    // force editor re-mount so it reflects the newly appended rows immediately
+    flushSync(() => setMultiKey((k) => k + 1));
+
+    // open the editor popup (inline table is visible behind it)
+    setShowEditor(true);
+
+    // 👇 scroll into view smoothly
+    setTimeout(() => {
+      lineItemsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 150);
+  };
+
+  window.addEventListener("prefill-xero-line-items", handler);
+  return () => window.removeEventListener("prefill-xero-line-items", handler);
+}, [jobId, description]);
+
 
   return (
     <div className="space-y-3">
@@ -117,7 +211,7 @@ export const XeroDestination = () => {
           </div>
 
           <button
-            onClick={toggleOpen}
+            onClick={() => setIsOpen((p) => !p)}
             aria-label={isOpen ? "Collapse" : "Expand"}
             className="absolute right-0 top-0 inline-flex h-8 w-8 items-center justify-center rounded-full border border-gray-300 bg-white hover:bg-gray-50 shadow-sm"
           >
@@ -163,7 +257,6 @@ export const XeroDestination = () => {
               </div>
             </div>
 
-
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label className="text-sm mb-1 block">
@@ -175,9 +268,9 @@ export const XeroDestination = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="Purchase">Purchase</SelectItem>
-                    <SelectItem value="Bill">Spend Money</SelectItem>
-                    <SelectItem value="Bill">Invoice (AR)</SelectItem>
-                    <SelectItem value="Bill">Credit Note</SelectItem>
+                    <SelectItem value="Spend">Spend Money</SelectItem>
+                    <SelectItem value="InvoiceAR">Invoice (AR)</SelectItem>
+                    <SelectItem value="CreditNote">Credit Note</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -192,7 +285,7 @@ export const XeroDestination = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="Awaiting Payment">Awaiting Payment</SelectItem>
-                    <SelectItem value="Paid">Awaiting Approved</SelectItem>
+                    <SelectItem value="Awaiting Approval">Awaiting Approval</SelectItem>
                     <SelectItem value="Draft">Draft</SelectItem>
                   </SelectContent>
                 </Select>
@@ -201,27 +294,29 @@ export const XeroDestination = () => {
 
             <div className="border-t border-gray-200" />
 
-            <div className="flex items-center justify-between">
+            {/* 👇 Added ref here for scroll target */}
+            <div className="flex items-center justify-between" ref={lineItemsRef}>
               <Label className="font-medium text-sm text-gray-800">Line Items</Label>
               <div className="flex items-center rounded-lg overflow-hidden text-sm border border-gray-300 bg-white">
                 <button
                   onClick={() => setLineItemMode("single")}
-                  className={`px-3 py-1.5 font-medium ${lineItemMode === "single" ? "text-blue-600 bg-blue-50" : "text-gray-700"
-                    }`}
+                  className={`px-3 py-1.5 font-medium ${
+                    lineItemMode === "single" ? "text-blue-600 bg-blue-50" : "text-gray-700"
+                  }`}
                 >
                   Single
                 </button>
                 <button
                   onClick={() => setLineItemMode("multiple")}
-                  className={`px-3 py-1.5 font-medium ${lineItemMode === "multiple" ? "text-blue-600 bg-blue-50" : "text-gray-700"
-                    }`}
+                  className={`px-3 py-1.5 font-medium ${
+                    lineItemMode === "multiple" ? "text-blue-600 bg-blue-50" : "text-gray-700"
+                  }`}
                 >
                   Multiple
                 </button>
               </div>
             </div>
 
-            {/* Single mode */}
             {lineItemMode === "single" && (
               <>
                 <div>
@@ -259,8 +354,8 @@ export const XeroDestination = () => {
                     <img src={Iicon} alt="info" className="w-4 h-4" />
                   </Label>
 
-                  <Select value={jobId} onValueChange={setJobId}>
-                    <SelectTrigger className="w-full">
+                  <Select value={jobId} onValueChange={handleJobSelectChange}>
+                    <SelectTrigger className={flatField}>
                       <SelectValue placeholder="Select Job ID" />
                     </SelectTrigger>
                     <SelectContent>
@@ -276,18 +371,57 @@ export const XeroDestination = () => {
               </>
             )}
 
-            {/* Multiple mode */}
             {lineItemMode === "multiple" && (
-              <MultipleLineItems
-                lineItems={lineItems}
-                updateLineItem={updateLineItem}
-                addLineItem={addLineItem}
-                removeLineItem={removeLineItem}
-                subtotal={subtotal}
-                total={total}
-                setLineItemMode={setLineItemMode}
-                saveLineItems={saveLineItems}
-              />
+              <div className="mt-2">
+                <div className="overflow-auto border rounded">
+                  <table className="w-full text-sm border-collapse min-w-[720px]">
+                    <thead>
+                      <tr className="bg-gray-50 border-b border-gray-200">
+                        <th className="px-3 py-2 text-left">Description</th>
+                        <th className="px-3 py-2 text-left">Account</th>
+                        <th className="px-3 py-2 text-left">Tax</th>
+                        <th className="px-3 py-2 text-right">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {lineItems.map((item, idx) => (
+                        <tr key={idx} className="border-b border-gray-200">
+                          <td className="px-3 py-2 truncate">{item.name || item.description}</td>
+                          <td className="px-3 py-2">{item.accountCode}</td>
+                          <td className="px-3 py-2">{item.taxRate}</td>
+                          <td className="px-3 py-2 text-right">
+                            {((Number(item.quantity) || 0) * (Number(item.unitPrice) || 0)).toFixed(2)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Summary + Edit button row */}
+                <div className="grid grid-cols-2 gap-4 mt-3">
+                  <div />
+                  <div className="justify-self-end w-full max-w-[360px] text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Subtotal</span>
+                      <span>{subtotal.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between font-semibold mt-1">
+                      <span>Total</span>
+                      <span>{total.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-end mt-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowEditor(true)}
+                        className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+                      >
+                        Edit Line Items
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
             )}
 
             <div>
@@ -312,7 +446,8 @@ export const XeroDestination = () => {
               <Label className="text-sm mb-1 block">Description</Label>
               <textarea
                 className="w-full h-28 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:outline-none focus:ring-0 focus:border-gray-300"
-                defaultValue="Your insurance policies are approaching renewal beginning in mid August. Please find attached all current schedules for your review. Could you please check each one and notify me if there are any changes or updates that need to be made at your earliest."
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
               />
             </div>
 
@@ -329,34 +464,97 @@ export const XeroDestination = () => {
         )}
       </div>
 
-      {/*  New Contact modal */}
-      {showNewContact && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50">
-          <div className="bg-white w-full max-w-md rounded-xl shadow-2xl border border-gray-200 p-5">
-            <h3 className="text-base font-semibold text-gray-900">New Contact</h3>
-            <p className="text-sm text-gray-600 mt-1">Add a contact to your list.</p>
+      {/* New Job ID modal */}
+      {showNewJob && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+          <div className="w-full max-w-sm rounded-xl bg-white shadow-xl border border-gray-200">
+            <div className="flex items-center justify-between px-4 py-3 border-b">
+              <div className="text-sm font-semibold">Add New Job ID</div>
+              <button
+                onClick={() => setShowNewJob(false)}
+                className="p-1.5 rounded hover:bg-gray-100"
+                aria-label="Close"
+              >
+                ✕
+              </button>
+            </div>
 
-            <div className="mt-4">
-              <Label className="text-sm mb-1 block">Contact name</Label>
+            <div className="p-4">
+              <Label className="text-xs">Job ID</Label>
+              <Input
+                autoFocus
+                value={newJobText}
+                onChange={(e) => setNewJobText(e.target.value)}
+                placeholder="e.g. JO-2045"
+                className="mt-2"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") saveNewJobId();
+                }}
+              />
+            </div>
+
+            <div className="px-4 pb-4 flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setShowNewJob(false)}>
+                Cancel
+              </Button>
+              <Button onClick={saveNewJobId}>Save</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* New Contact modal (unchanged behavior) */}
+      {showNewContact && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+          <div className="w-full max-w-sm rounded-xl bg-white shadow-xl border border-gray-200">
+            <div className="flex items-center justify-between px-4 py-3 border-b">
+              <div className="text-sm font-semibold">Add New Contact</div>
+              <button
+                onClick={() => setShowNewContact(false)}
+                className="p-1.5 rounded hover:bg-gray-100"
+                aria-label="Close"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-4">
+              <Label className="text-xs">Contact name</Label>
               <Input
                 autoFocus
                 value={newContactName}
                 onChange={(e) => setNewContactName(e.target.value)}
-                placeholder="e.g., Avantor Performance Pvt Ltd"
-                className={flatField}
+                placeholder="e.g. Eye Dream"
+                className="mt-2"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") saveNewContact();
+                }}
               />
             </div>
 
-            <div className="mt-5 flex justify-end gap-2">
-              <Button variant="outline" className="h-9" onClick={() => setShowNewContact(false)}>
+            <div className="px-4 pb-4 flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setShowNewContact(false)}>
                 Cancel
               </Button>
-              <Button className="h-9" onClick={saveNewContact}>
-                Save
-              </Button>
+              <Button onClick={saveNewContact}>Save</Button>
             </div>
           </div>
         </div>
+      )}
+
+      {/* Multiple line items editor modal (kept as a modal, shows over inline table) */}
+      {showEditor && (
+        <MultipleLineItems
+          key={multiKey}
+          lineItems={lineItems}
+          updateLineItem={updateLineItem}
+          addLineItem={addLineItem}
+          removeLineItem={removeLineItem}
+          subtotal={subtotal}
+          total={total}
+          setLineItemMode={() => setShowEditor(false)} // Cancel closes popup only
+          saveLineItems={saveLineItems}               // Save closes popup only
+        />
       )}
     </div>
   );

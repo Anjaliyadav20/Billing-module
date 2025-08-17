@@ -9,9 +9,7 @@ export const Header = () => {
 
   const [activeView, setActiveView] = useState("grid");
   const [isModalOpen, setIsModalOpen] = useState(false);
-
-
-
+  
   return (
     <>
       <div className="flex items-center justify-between px-6 h-16 border-b border-border bg-white">
